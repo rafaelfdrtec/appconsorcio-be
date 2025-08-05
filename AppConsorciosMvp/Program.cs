@@ -1,5 +1,6 @@
 using System.Text;
 using AppConsorciosMvp.Data;
+using AppConsorciosMvp.Extensions;
 using AppConsorciosMvp.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -8,12 +9,19 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Obter configurações
+var configuration = builder.Configuration;
+var connectionString = configuration.GetConnectionString("DefaultConnection") ?? 
+                      throw new InvalidOperationException("String de conexão 'DefaultConnection' não encontrada.");
+var jwtSecret = configuration["JWT:Secret"] ?? 
+               throw new InvalidOperationException("JWT Secret não configurado");
+
 // Adicionar serviços ao container
 builder.Services.AddControllers();
 
 // Configurar banco de dados
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
 
 // Registrar serviços personalizados
 builder.Services.AddScoped<PasswordHashService>();
@@ -26,15 +34,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-                builder.Configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret não configurado")
-            )),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ValidateIssuer = false,
             ValidateAudience = false,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
     });
+
+// Configurar CORS para desenvolvimento
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // Configurar Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -50,7 +67,7 @@ builder.Services.AddSwaggerGen(c =>
     // Configurar autenticação no Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme",
+        Description = "JWT Authorization header usando o esquema Bearer. Exemplo: 'Bearer {token}'",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -75,11 +92,32 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Aplicar migrações automaticamente
+app.AplicarMigracoes();
+
 // Configurar o pipeline de requisições HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Consórcios v1");
+        c.RoutePrefix = string.Empty; // Para servir a UI do Swagger na raiz
+    });
+    app.UseCors("AllowAll");
+}
+else
+{
+    // Em produção, também habilitamos o Swagger, mas com caminho específico
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Consórcios v1");
+        c.RoutePrefix = "docs"; // Em produção, acessível via /docs
+    });
+
+    // Configurações de segurança para produção
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();

@@ -4,4 +4,30 @@
     build:
       context: .
       dockerfile: AppConsorciosMvp/Dockerfile
+services:
+  app:
+    build:
+      context: .
+      dockerfile: AppConsorciosMvp/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=db;Database=ConsorciosMvp;User=sa;Password=Senha@123!;TrustServerCertificate=True;
+      - JWT__Secret=S3cr3tK3yP@raG3r@c@oD3T0k3nsJWT_D0ck3r_C0nt@1n3r_2025
+    depends_on:
+      - db
 
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Senha@123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+volumes:
+  sqlserver_data:
