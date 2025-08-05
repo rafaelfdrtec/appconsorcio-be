@@ -1,0 +1,7 @@
+﻿services:
+  appconsorciosmvp:
+    image: appconsorciosmvp
+    build:
+      context: .
+      dockerfile: AppConsorciosMvp/Dockerfile
+
