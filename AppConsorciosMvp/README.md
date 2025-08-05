@@ -126,7 +126,57 @@ A API segue o padrão RESTful e possui os seguintes endpoints principais:
 - `GET /api/cartas/pesquisar` - Pesquisar cartas com filtros
 - `PUT /api/cartas/{id}/status` - Atualizar status de uma carta
 - `POST /api/cartas/{id}/verificar` - Verificar uma carta (apenas admin)
+# API de Consórcios - MVP
 
+API para transação de cartas de consórcio contempladas desenvolvida em ASP.NET Core 9.0 com PostgreSQL.
+
+## Configuração Inicial após Migração para PostgreSQL
+
+O projeto foi migrado de SQL Server para PostgreSQL. A pasta `Data/Migrations` foi excluída e precisa ser recriada:
+
+1. Instale o PostgreSQL localmente ou use Docker
+2. Execute o script `reset-migrations.ps1` (Windows) ou `reset-migrations.sh` (Linux/Mac) para recriar a estrutura de pastas e as migrações
+3. Execute `dotnet ef database update` para aplicar as migrações ao banco de dados
+
+## Estrutura de Pastas
+
+A estrutura de pastas `Data/Migrations` será recriada automaticamente pelos scripts fornecidos. Caso precise criar manualmente:
+
+```
+AppConsorciosMvp/
+├── Data/
+│   ├── AppDbContext.cs
+│   └── Migrations/
+```
+
+## Execução com Docker
+
+O projeto inclui configuração Docker Compose para executar a aplicação com PostgreSQL:
+
+```bash
+docker-compose up -d
+```
+
+Esta configuração já inclui um volume persistente para o PostgreSQL e configura automaticamente o banco de dados.
+
+## Configuração de Conexão
+
+As strings de conexão estão configuradas nos arquivos `appsettings.json` e `appsettings.Development.json`.
+
+Padrão: `Host=localhost;Database=ConsorciosMvp;Username=postgres;Password=postgres`
+
+Você pode modificar estes valores conforme necessário para seu ambiente.
+
+## Fallback para Criação Direta do Banco
+
+Se as migrações não estiverem disponíveis durante a inicialização da aplicação, o sistema tentará criar o banco de dados diretamente com `EnsureCreated()`. Esta é uma medida de contingência para garantir que a aplicação funcione enquanto você configura as migrações.
+
+## Tecnologias Atualizadas
+
+- ASP.NET Core 9.0
+- Entity Framework Core 9.0 com PostgreSQL
+- JWT para autenticação
+- Swagger para documentação da API
 ## Autenticação
 
 Para acessar endpoints protegidos:

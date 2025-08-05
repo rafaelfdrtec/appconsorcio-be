@@ -3,6 +3,10 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+# Instalar dependências do PostgreSQL no contêiner base
+RUN apt-get update && apt-get install -y apt-transport-https && \
+    apt-get install -y postgresql-client
+
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
@@ -15,6 +19,10 @@ RUN dotnet build "./AppConsorciosMvp.csproj" -c $BUILD_CONFIGURATION -o /app/bui
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "./AppConsorciosMvp.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+# Instalar ferramentas EF Core para migrações
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="$PATH:/root/.dotnet/tools"
 
 FROM base AS final
 WORKDIR /app

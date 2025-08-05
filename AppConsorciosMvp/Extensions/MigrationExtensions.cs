@@ -23,13 +23,38 @@ namespace AppConsorciosMvp.Extensions
 
                 try
                 {
-                    app.Logger.LogInformation("Aplicando migrações automaticamente...");
-                    dbContext.Database.Migrate();
-                    app.Logger.LogInformation("Migrações aplicadas com sucesso!");
+                    // Verificar se as migrações existem
+                    var migracoesExistentes = dbContext.Database.GetPendingMigrations();
+
+                    if (!migracoesExistentes.Any())
+                    {
+                        // Se não houver migrações, crie o banco diretamente
+                        app.Logger.LogInformation("Não há migrações disponíveis. Criando banco de dados diretamente...");
+                        dbContext.Database.EnsureCreated();
+                        app.Logger.LogInformation("Banco de dados criado com sucesso!");
+                    }
+                    else
+                    {
+                        // Aplicar migrações existentes
+                        app.Logger.LogInformation("Aplicando migrações automaticamente...");
+                        dbContext.Database.Migrate();
+                        app.Logger.LogInformation("Migrações aplicadas com sucesso!");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    app.Logger.LogError(ex, "Erro ao aplicar migrações do banco de dados.");
+                    app.Logger.LogError(ex, "Erro ao aplicar migrações do banco de dados. Tentando criar o banco diretamente...");
+
+                    try
+                    {
+                        // Em caso de erro, tente criar o banco diretamente
+                        dbContext.Database.EnsureCreated();
+                        app.Logger.LogInformation("Banco de dados criado com sucesso após falha nas migrações!");
+                    }
+                    catch (Exception innerEx)
+                    {
+                        app.Logger.LogError(innerEx, "Erro ao criar banco de dados diretamente.");
+                    }
                 }
             }
 

@@ -39,6 +39,12 @@ namespace AppConsorciosMvp.Data
                       .WithOne(c => c.Vendedor)
                       .HasForeignKey(c => c.VendedorId)
                       .OnDelete(DeleteBehavior.Cascade);
+
+                // Definir tipos de coluna específicos para PostgreSQL
+                entity.Property(e => e.Nome).HasColumnType("varchar(100)");
+                entity.Property(e => e.Email).HasColumnType("varchar(100)");
+                entity.Property(e => e.SenhaHash).HasColumnType("text");
+                entity.Property(e => e.Papel).HasColumnType("varchar(20)");
             });
 
             // Configuração da entidade CartaConsorcio
@@ -49,7 +55,20 @@ namespace AppConsorciosMvp.Data
 
                 // Índice para melhorar a performance de pesquisa por status
                 entity.HasIndex(e => e.Status);
+
+                // Definir tipos de coluna específicos para PostgreSQL
+                entity.Property(e => e.TipoBem).HasColumnType("varchar(50)");
+                entity.Property(e => e.Status).HasColumnType("varchar(20)");
+                entity.Property(e => e.Descricao).HasColumnType("text");
+                entity.Property(e => e.ValorCredito).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.ValorEntrada).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.ValorParcela).HasColumnType("decimal(18,2)");
             });
+
+
+   
+           
         }
     }
 }
+
