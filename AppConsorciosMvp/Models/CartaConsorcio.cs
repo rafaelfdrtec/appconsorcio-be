@@ -26,6 +26,18 @@ namespace AppConsorciosMvp.Models
         public Usuario? Vendedor { get; set; }
 
         /// <summary>
+        /// ID da administradora do consórcio
+        /// </summary>
+        [Required(ErrorMessage = "A administradora é obrigatória")]
+        public Guid AdministradoraId { get; set; }
+
+        /// <summary>
+        /// Referência à administradora do consórcio
+        /// </summary>
+        [ForeignKey("AdministradoraId")]
+        public Administradora? Administradora { get; set; }
+
+        /// <summary>
         /// Valor total do crédito da carta
         /// </summary>
         [Required(ErrorMessage = "O valor do crédito é obrigatório")]
