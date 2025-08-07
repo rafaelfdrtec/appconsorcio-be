@@ -9,6 +9,8 @@
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=db;Database=ConsorciosMvp;Username=postgres;Password=postgres;
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
+      - AzureStorage__ContainerName=${AZURE_STORAGE_CONTAINER_NAME:-documentos}
       - JWT__Secret=S3cr3tK3yP@raG3r@c@oD3T0k3nsJWT_D0ck3r_C0nt@1n3r_2025
     depends_on:
       - db
