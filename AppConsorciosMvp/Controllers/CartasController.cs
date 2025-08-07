@@ -10,55 +10,67 @@ namespace AppConsorciosMvp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class CartasController : ControllerBase
+    public class CartasController(AppDbContext context) : ControllerBase
     {
-        private readonly AppDbContext _context;
-
-        public CartasController(AppDbContext context)
-        {
-            _context = context;
-        }
-
         /// <summary>
-        /// Cria uma nova carta de consórcio
+        /// Cria uma carta de consórcio
         /// </summary>
-        /// <param name="cartaDTO">Dados da carta</param>
+        /// <param name="cartaDto">Dados da carta</param>
         /// <returns>Carta criada</returns>
         [HttpPost]
         [Authorize(Roles = "vendedor,admin")] // Apenas vendedores ou admins podem criar cartas
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<CartaConsorcioRespostaDTO>> CriarCarta(CriarCartaConsorcioDTO cartaDTO)
+        public async Task<ActionResult<CartaConsorcioRespostaDTO>> CriarCarta(CriarCartaConsorcioDTO cartaDto)
         {
             // Obter ID do usuário autenticado
             var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
             // Verificar se o usuário existe
-            var usuario = await _context.Usuarios.FindAsync(usuarioId);
+            var usuario = await context.Usuarios.FindAsync(usuarioId);
             if (usuario == null)
             {
                 return BadRequest("Usuário não encontrado");
+            }
+
+            // Verificar se a administradora existe
+            var administradora = await context.Administradoras.FindAsync(cartaDto.AdministradoraId);
+            if (administradora == null)
+            {
+                return BadRequest("Administradora não encontrada");
+            }
+
+            // Verificar se a administradora está ativa
+            if (administradora.Status != "ativa")
+            {
+                return BadRequest("A administradora selecionada não está ativa");
             }
 
             // Criar a carta
             var carta = new CartaConsorcio
             {
                 VendedorId = usuarioId,
-                ValorCredito = cartaDTO.ValorCredito,
-                ValorEntrada = cartaDTO.ValorEntrada,
-                ParcelasPagas = cartaDTO.ParcelasPagas,
-                ParcelasTotais = cartaDTO.ParcelasTotais,
-                ValorParcela = cartaDTO.ValorParcela,
+                AdministradoraId = cartaDto.AdministradoraId,
+                ValorCredito = cartaDto.ValorCredito,
+                ValorEntrada = cartaDto.ValorEntrada,
+                ParcelasPagas = cartaDto.ParcelasPagas,
+                ParcelasTotais = cartaDto.ParcelasTotais,
+                ValorParcela = cartaDto.ValorParcela,
                 Status = "disponivel", // Status inicial
-                TipoBem = cartaDTO.TipoBem,
-                Descricao = cartaDTO.Descricao,
+                TipoBem = cartaDto.TipoBem,
+                Descricao = cartaDto.Descricao,
+                NumeroCota = cartaDto.NumeroCota,
+                Grupo = cartaDto.Grupo,
+                TipoContemplacao = cartaDto.TipoContemplacao,
+                DataContemplacao = cartaDto.DataContemplacao,
+                Observacoes = cartaDto.Observacoes,
                 CriadoEm = DateTime.Now,
                 EhVerificado = false // Inicialmente não verificada
             };
 
-            _context.CartasConsorcio.Add(carta);
-            await _context.SaveChangesAsync();
+            context.CartasConsorcio.Add(carta);
+            await context.SaveChangesAsync();
 
             // Retornar a carta criada
             return CreatedAtAction(nameof(ObterCarta), new { id = carta.Id }, new CartaConsorcioRespostaDTO
@@ -66,6 +78,8 @@ namespace AppConsorciosMvp.Controllers
                 Id = carta.Id,
                 VendedorId = carta.VendedorId,
                 NomeVendedor = usuario.Nome,
+                AdministradoraId = carta.AdministradoraId,
+                NomeAdministradora = administradora.Nome,
                 ValorCredito = carta.ValorCredito,
                 ValorEntrada = carta.ValorEntrada,
                 ParcelasPagas = carta.ParcelasPagas,
@@ -74,6 +88,11 @@ namespace AppConsorciosMvp.Controllers
                 Status = carta.Status,
                 TipoBem = carta.TipoBem,
                 Descricao = carta.Descricao,
+                NumeroCota = carta.NumeroCota,
+                Grupo = carta.Grupo,
+                TipoContemplacao = carta.TipoContemplacao,
+                DataContemplacao = carta.DataContemplacao,
+                Observacoes = carta.Observacoes,
                 CriadoEm = carta.CriadoEm,
                 EhVerificado = carta.EhVerificado
             });
@@ -89,17 +108,20 @@ namespace AppConsorciosMvp.Controllers
         public async Task<ActionResult<IEnumerable<CartaConsorcioRespostaDTO>>> ObterCartasDisponiveis()
         {
             // Buscar cartas com status "disponivel"
-            var cartas = await _context.CartasConsorcio
+            var cartas = await context.CartasConsorcio
                 .Where(c => c.Status == "disponivel")
                 .Include(c => c.Vendedor)
+                .Include(c => c.Administradora)
                 .ToListAsync();
 
             // Mapear para DTO
-            var cartasDTO = cartas.Select(c => new CartaConsorcioRespostaDTO
+            var cartasDto = cartas.Select(c => new CartaConsorcioRespostaDTO
             {
                 Id = c.Id,
                 VendedorId = c.VendedorId,
                 NomeVendedor = c.Vendedor?.Nome ?? "Desconhecido",
+                AdministradoraId = c.AdministradoraId,
+                NomeAdministradora = c.Administradora?.Nome ?? "Desconhecida",
                 ValorCredito = c.ValorCredito,
                 ValorEntrada = c.ValorEntrada,
                 ParcelasPagas = c.ParcelasPagas,
@@ -108,11 +130,16 @@ namespace AppConsorciosMvp.Controllers
                 Status = c.Status,
                 TipoBem = c.TipoBem,
                 Descricao = c.Descricao,
+                NumeroCota = c.NumeroCota,
+                Grupo = c.Grupo,
+                TipoContemplacao = c.TipoContemplacao,
+                DataContemplacao = c.DataContemplacao,
+                Observacoes = c.Observacoes,
                 CriadoEm = c.CriadoEm,
                 EhVerificado = c.EhVerificado
             }).ToList();
 
-            return Ok(cartasDTO);
+            return Ok(cartasDto);
         }
 
         /// <summary>
@@ -127,8 +154,9 @@ namespace AppConsorciosMvp.Controllers
         public async Task<ActionResult<CartaConsorcioRespostaDTO>> ObterCarta(int id)
         {
             // Buscar carta pelo ID
-            var carta = await _context.CartasConsorcio
+            var carta = await context.CartasConsorcio
                 .Include(c => c.Vendedor)
+                .Include(c => c.Administradora)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (carta == null)
@@ -137,11 +165,13 @@ namespace AppConsorciosMvp.Controllers
             }
 
             // Mapear para DTO
-            var cartaDTO = new CartaConsorcioRespostaDTO
+            var cartaDto = new CartaConsorcioRespostaDTO
             {
                 Id = carta.Id,
                 VendedorId = carta.VendedorId,
                 NomeVendedor = carta.Vendedor?.Nome ?? "Desconhecido",
+                AdministradoraId = carta.AdministradoraId,
+                NomeAdministradora = carta.Administradora?.Nome ?? "Desconhecida",
                 ValorCredito = carta.ValorCredito,
                 ValorEntrada = carta.ValorEntrada,
                 ParcelasPagas = carta.ParcelasPagas,
@@ -150,11 +180,16 @@ namespace AppConsorciosMvp.Controllers
                 Status = carta.Status,
                 TipoBem = carta.TipoBem,
                 Descricao = carta.Descricao,
+                NumeroCota = carta.NumeroCota,
+                Grupo = carta.Grupo,
+                TipoContemplacao = carta.TipoContemplacao,
+                DataContemplacao = carta.DataContemplacao,
+                Observacoes = carta.Observacoes,
                 CriadoEm = carta.CriadoEm,
                 EhVerificado = carta.EhVerificado
             };
 
-            return Ok(cartaDTO);
+            return Ok(cartaDto);
         }
 
         /// <summary>
@@ -168,9 +203,10 @@ namespace AppConsorciosMvp.Controllers
         public async Task<ActionResult<IEnumerable<CartaConsorcioRespostaDTO>>> PesquisarCartas([FromQuery] PesquisarCartaConsorcioDTO filtros)
         {
             // Construir a consulta com base nos filtros
-            IQueryable<CartaConsorcio> query = _context.CartasConsorcio
+            IQueryable<CartaConsorcio> query = context.CartasConsorcio
                 .Where(c => c.Status == "disponivel") // Apenas cartas disponíveis
-                .Include(c => c.Vendedor);
+                .Include(c => c.Vendedor)
+                .Include(c => c.Administradora);
 
             // Aplicar filtros se fornecidos
             if (!string.IsNullOrEmpty(filtros.TipoBem))
@@ -197,11 +233,13 @@ namespace AppConsorciosMvp.Controllers
             var cartas = await query.ToListAsync();
 
             // Mapear para DTO
-            var cartasDTO = cartas.Select(c => new CartaConsorcioRespostaDTO
+            var cartasDto = cartas.Select(c => new CartaConsorcioRespostaDTO
             {
                 Id = c.Id,
                 VendedorId = c.VendedorId,
                 NomeVendedor = c.Vendedor?.Nome ?? "Desconhecido",
+                AdministradoraId = c.AdministradoraId,
+                NomeAdministradora = c.Administradora?.Nome ?? "Desconhecida",
                 ValorCredito = c.ValorCredito,
                 ValorEntrada = c.ValorEntrada,
                 ParcelasPagas = c.ParcelasPagas,
@@ -210,18 +248,23 @@ namespace AppConsorciosMvp.Controllers
                 Status = c.Status,
                 TipoBem = c.TipoBem,
                 Descricao = c.Descricao,
+                NumeroCota = c.NumeroCota,
+                Grupo = c.Grupo,
+                TipoContemplacao = c.TipoContemplacao,
+                DataContemplacao = c.DataContemplacao,
+                Observacoes = c.Observacoes,
                 CriadoEm = c.CriadoEm,
                 EhVerificado = c.EhVerificado
             }).ToList();
 
-            return Ok(cartasDTO);
+            return Ok(cartasDto);
         }
 
         /// <summary>
         /// Atualiza o status de uma carta
         /// </summary>
         /// <param name="id">ID da carta</param>
-        /// <param name="statusDTO">Novo status</param>
+        /// <param name="statusDto">Novo status</param>
         /// <returns>Carta atualizada</returns>
         [HttpPut("{id}/status")]
         [Authorize] // Requer autenticação
@@ -229,10 +272,10 @@ namespace AppConsorciosMvp.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<CartaConsorcioRespostaDTO>> AtualizarStatusCarta(int id, AtualizarStatusCartaDTO statusDTO)
+        public async Task<ActionResult<CartaConsorcioRespostaDTO>> AtualizarStatusCarta(int id, AtualizarStatusCartaDTO statusDto)
         {
             // Buscar carta pelo ID
-            var carta = await _context.CartasConsorcio
+            var carta = await context.CartasConsorcio
                 .Include(c => c.Vendedor)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -253,17 +296,17 @@ namespace AppConsorciosMvp.Controllers
             }
 
             // Verificar se a transição de status é válida
-            if (!EhTransicaoStatusValida(carta.Status, statusDTO.Status))
+            if (!EhTransicaoStatusValida(carta.Status, statusDto.Status))
             {
-                return BadRequest($"Transição de status inválida: {carta.Status} -> {statusDTO.Status}");
+                return BadRequest($"Transição de status inválida: {carta.Status} -> {statusDto.Status}");
             }
 
             // Atualizar o status
-            carta.Status = statusDTO.Status;
-            await _context.SaveChangesAsync();
+            carta.Status = statusDto.Status;
+            await context.SaveChangesAsync();
 
             // Mapear para DTO
-            var cartaDTO = new CartaConsorcioRespostaDTO
+            var cartaDto = new CartaConsorcioRespostaDTO
             {
                 Id = carta.Id,
                 VendedorId = carta.VendedorId,
@@ -280,7 +323,7 @@ namespace AppConsorciosMvp.Controllers
                 EhVerificado = carta.EhVerificado
             };
 
-            return Ok(cartaDTO);
+            return Ok(cartaDto);
         }
 
         /// <summary>
@@ -295,8 +338,10 @@ namespace AppConsorciosMvp.Controllers
         public async Task<ActionResult<CartaConsorcioRespostaDTO>> VerificarCarta(int id)
         {
             // Buscar carta pelo ID
-            var carta = await _context.CartasConsorcio
+            var carta = await context.CartasConsorcio
                 .Include(c => c.Vendedor)
+                .Include(c => c.Administradora)
+                .Include(c => c.Administradora)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (carta == null)
@@ -306,14 +351,16 @@ namespace AppConsorciosMvp.Controllers
 
             // Marcar como verificada
             carta.EhVerificado = true;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
 
             // Mapear para DTO
-            var cartaDTO = new CartaConsorcioRespostaDTO
+            var cartaDto = new CartaConsorcioRespostaDTO
             {
                 Id = carta.Id,
                 VendedorId = carta.VendedorId,
                 NomeVendedor = carta.Vendedor?.Nome ?? "Desconhecido",
+                AdministradoraId = carta.AdministradoraId,
+                NomeAdministradora = carta.Administradora?.Nome ?? "Desconhecida",
                 ValorCredito = carta.ValorCredito,
                 ValorEntrada = carta.ValorEntrada,
                 ParcelasPagas = carta.ParcelasPagas,
@@ -326,7 +373,7 @@ namespace AppConsorciosMvp.Controllers
                 EhVerificado = carta.EhVerificado
             };
 
-            return Ok(cartaDTO);
+            return Ok(cartaDto);
         }
 
         /// <summary>

@@ -20,6 +20,9 @@ var jwtSecret = configuration["JWT:Secret"] ??
 // Adicionar serviços ao container
 builder.Services.AddControllers();
 
+// Registrar serviços customizados
+builder.Services.AddScoped<AzureBlobService>();
+
 // Configurar banco de dados
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));

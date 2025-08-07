@@ -93,6 +93,37 @@ namespace AppConsorciosMvp.Models
         public string? Descricao { get; set; }
 
         /// <summary>
+        /// Número da cota no consórcio
+        /// </summary>
+        [Required(ErrorMessage = "O número da cota é obrigatório")]
+        [StringLength(20, ErrorMessage = "O número da cota deve ter no máximo 20 caracteres")]
+        public string NumeroCota { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Número do grupo do consórcio
+        /// </summary>
+        [Required(ErrorMessage = "O grupo é obrigatório")]
+        [StringLength(20, ErrorMessage = "O grupo deve ter no máximo 20 caracteres")]
+        public string Grupo { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Tipo de contemplação (sorteio ou lance)
+        /// </summary>
+        [Required(ErrorMessage = "O tipo de contemplação é obrigatório")]
+        [StringLength(10, ErrorMessage = "O tipo de contemplação deve ter no máximo 10 caracteres")]
+        public string TipoContemplacao { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Data da contemplação (se aplicável)
+        /// </summary>
+        public DateTime? DataContemplacao { get; set; }
+
+        /// <summary>
+        /// Observações adicionais da carta
+        /// </summary>
+        public string? Observacoes { get; set; }
+
+        /// <summary>
         /// Data de criação do registro da carta
         /// </summary>
         public DateTime CriadoEm { get; set; } = DateTime.Now;

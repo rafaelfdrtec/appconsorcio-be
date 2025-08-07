@@ -7,6 +7,9 @@ namespace AppConsorciosMvp.DTOs
     /// </summary>
     public class CriarCartaConsorcioDTO
     {
+        [Required(ErrorMessage = "A administradora é obrigatória")]
+        public Guid AdministradoraId { get; set; }
+
         [Required(ErrorMessage = "O valor do crédito é obrigatório")]
         [Range(0.01, double.MaxValue, ErrorMessage = "O valor do crédito deve ser maior que zero")]
         public decimal ValorCredito { get; set; }
@@ -28,10 +31,26 @@ namespace AppConsorciosMvp.DTOs
         public decimal ValorParcela { get; set; }
 
         [Required(ErrorMessage = "O tipo de bem é obrigatório")]
-        [RegularExpression("^(imovel|veiculo|outro)$", ErrorMessage = "Tipo de bem inválido. Os valores permitidos são: imovel, veiculo ou outro")]
+        [RegularExpression("^(imovel|veiculo|servicos)$", ErrorMessage = "Tipo de bem inválido. Os valores permitidos são: imovel, veiculo ou servicos")]
         public string TipoBem { get; set; } = string.Empty;
 
         public string? Descricao { get; set; }
+
+        [Required(ErrorMessage = "O número da cota é obrigatório")]
+        [StringLength(20, ErrorMessage = "O número da cota deve ter no máximo 20 caracteres")]
+        public string NumeroCota { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O grupo é obrigatório")]
+        [StringLength(20, ErrorMessage = "O grupo deve ter no máximo 20 caracteres")]
+        public string Grupo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "O tipo de contemplação é obrigatório")]
+        [RegularExpression("^(sorteio|lance)$", ErrorMessage = "Tipo de contemplação inválido. Os valores permitidos são: sorteio ou lance")]
+        public string TipoContemplacao { get; set; } = string.Empty;
+
+        public DateTime? DataContemplacao { get; set; }
+
+        public string? Observacoes { get; set; }
     }
 
     /// <summary>
@@ -63,6 +82,8 @@ namespace AppConsorciosMvp.DTOs
         public int Id { get; set; }
         public int VendedorId { get; set; }
         public string NomeVendedor { get; set; } = string.Empty;
+        public Guid AdministradoraId { get; set; }
+        public string NomeAdministradora { get; set; } = string.Empty;
         public decimal ValorCredito { get; set; }
         public decimal ValorEntrada { get; set; }
         public int ParcelasPagas { get; set; }
@@ -71,6 +92,11 @@ namespace AppConsorciosMvp.DTOs
         public string Status { get; set; } = string.Empty;
         public string TipoBem { get; set; } = string.Empty;
         public string? Descricao { get; set; }
+        public string NumeroCota { get; set; } = string.Empty;
+        public string Grupo { get; set; } = string.Empty;
+        public string TipoContemplacao { get; set; } = string.Empty;
+        public DateTime? DataContemplacao { get; set; }
+        public string? Observacoes { get; set; }
         public DateTime CriadoEm { get; set; }
         public bool EhVerificado { get; set; }
     }
