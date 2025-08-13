@@ -16,18 +16,18 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _context;
     private readonly PasswordHashService _passwordHashService;
     private readonly TokenService _tokenService;
-    private readonly GoogleTokenValidationService _googleTokenValidationService;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         AppDbContext context,
         PasswordHashService passwordHashService,
         TokenService tokenService,
-        GoogleTokenValidationService googleTokenValidationService)
+        IConfiguration configuration)
     {
         _context = context;
         _passwordHashService = passwordHashService;
         _tokenService = tokenService;
-        _googleTokenValidationService = googleTokenValidationService;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public class AuthController : ControllerBase
     /// Autentica via Google (NextAuth) usando o id_token e retorna nosso JWT.
     /// Se o usuário não existir, faz o provisionamento automático.
     /// </summary>
-    /// <param name="request">Objeto contendo o id_token do Google</param>
+    /// <param name="request">Objeto contendo o id_token do Google e dados auxiliares do perfil</param>
     /// <returns>Dados do usuário autenticado e token JWT</returns>
     [HttpPost("google")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -85,23 +85,41 @@ public class AuthController : ControllerBase
             return BadRequest("IdToken é obrigatório.");
         }
 
-        var tokenInfo = await _googleTokenValidationService.ValidateAsync(request.IdToken);
+        // Instancia o validador usando IConfiguration (sem depender de registro no DI)
+        var tokenInfo = await new GoogleTokenValidationService(_configuration).ValidateAsync(request.IdToken);
         if (tokenInfo == null)
         {
             return Unauthorized("Token do Google inválido.");
         }
 
-        // Tenta localizar usuário pelo email
+        // Coerência: se o frontend enviou googleId/email, devem bater com o id_token
+        if (!string.IsNullOrWhiteSpace(request.Email) &&
+            !string.Equals(request.Email, tokenInfo.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            return Unauthorized("Email do payload não confere com o id_token.");
+        }
+        if (!string.IsNullOrWhiteSpace(request.GoogleId) &&
+            !string.Equals(request.GoogleId, tokenInfo.Sub, StringComparison.OrdinalIgnoreCase))
+        {
+            return Unauthorized("GoogleId do payload não confere com o id_token.");
+        }
+
+        // Tenta localizar usuário pelo email do id_token (fonte de verdade)
         var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == tokenInfo.Email);
 
         // Provisiona automaticamente se não existir
         if (usuario == null)
         {
+            // Preferir o nome enviado pelo frontend; se ausente, usar o do token; fallback: parte do email
+            var nome = !string.IsNullOrWhiteSpace(request.Name)
+                ? request.Name!
+                : (!string.IsNullOrWhiteSpace(tokenInfo.Name)
+                    ? tokenInfo.Name
+                    : tokenInfo.Email.Split('@')[0]);
+
             usuario = new Usuario
             {
-                Nome = string.IsNullOrWhiteSpace(tokenInfo.Name)
-                    ? tokenInfo.Email.Split('@')[0]
-                    : tokenInfo.Name,
+                Nome = nome,
                 Email = tokenInfo.Email,
                 Papel = "Usuario",
                 EhVerificado = tokenInfo.EmailVerified
