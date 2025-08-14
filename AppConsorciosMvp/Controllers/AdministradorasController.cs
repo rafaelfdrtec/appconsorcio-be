@@ -26,10 +26,8 @@ namespace AppConsorciosMvp.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<AdministradoraRespostaDTO>>> ListarAdministradoras()
         {
-            if (!IsUserAdmin())
-            {
-                return Forbid("Acesso negado. Apenas administradores podem acessar este recurso.");
-            }
+            //a consulta de administradoras deve ser liberada para usuarios logados 
+            //pois temos a tela de venda de cotas que deve permitir a seleção das cadastradas
 
             var administradoras = await _context.Administradoras
                 .OrderBy(a => a.Nome)

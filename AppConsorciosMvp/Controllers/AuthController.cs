@@ -11,25 +11,13 @@ namespace AppConsorciosMvp.Controllers;
 [ApiController]
 [Route("auth")]
 [AllowAnonymous]
-public class AuthController : ControllerBase
+public class AuthController(
+    AppDbContext context,
+    PasswordHashService passwordHashService,
+    TokenService tokenService,
+    IConfiguration configuration)
+    : ControllerBase
 {
-    private readonly AppDbContext _context;
-    private readonly PasswordHashService _passwordHashService;
-    private readonly TokenService _tokenService;
-    private readonly IConfiguration _configuration;
-
-    public AuthController(
-        AppDbContext context,
-        PasswordHashService passwordHashService,
-        TokenService tokenService,
-        IConfiguration configuration)
-    {
-        _context = context;
-        _passwordHashService = passwordHashService;
-        _tokenService = tokenService;
-        _configuration = configuration;
-    }
-
     /// <summary>
     /// Autentica um usuário com email e password e retorna um token JWT.
     /// </summary>
@@ -41,20 +29,20 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<UsuarioRespostaDTO>> Login([FromBody] AuthLoginRequest request)
     {
         // Buscar usuário pelo email
-        var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (usuario == null)
         {
             return Unauthorized("Email ou senha inválidos");
         }
 
         // Verificar senha
-        if (!_passwordHashService.VerificarSenha(request.Password, usuario.SenhaHash))
+        if (!passwordHashService.VerificarSenha(request.Password, usuario.SenhaHash))
         {
             return Unauthorized("Email ou senha inválidos");
         }
 
         // Gerar token JWT
-        var token = _tokenService.GerarToken(usuario);
+        var token = tokenService.GerarToken(usuario);
 
         // Retornar dados do usuário e token
         return Ok(new UsuarioRespostaDTO
@@ -73,12 +61,12 @@ public class AuthController : ControllerBase
     /// Se o usuário não existir, faz o provisionamento automático.
     /// </summary>
     /// <param name="request">Objeto contendo o id_token do Google e dados auxiliares do perfil</param>
-    /// <returns>Dados do usuário autenticado e token JWT</returns>
+    /// <returns>Objeto com 'user' e 'tokens' (accessToken e refreshToken)</returns>
     [HttpPost("google")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<UsuarioRespostaDTO>> LoginComGoogle([FromBody] GoogleAuthRequest request)
+    public async Task<ActionResult<AuthResponseDTO>> LoginComGoogle([FromBody] GoogleAuthRequest request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.IdToken))
         {
@@ -86,7 +74,7 @@ public class AuthController : ControllerBase
         }
 
         // Instancia o validador usando IConfiguration (sem depender de registro no DI)
-        var tokenInfo = await new GoogleTokenValidationService(_configuration).ValidateAsync(request.IdToken);
+        var tokenInfo = await new GoogleTokenValidationService(configuration).ValidateAsync(request.IdToken);
         if (tokenInfo == null)
         {
             return Unauthorized("Token do Google inválido.");
@@ -105,7 +93,7 @@ public class AuthController : ControllerBase
         }
 
         // Tenta localizar usuário pelo email do id_token (fonte de verdade)
-        var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == tokenInfo.Email);
+        var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Email == tokenInfo.Email);
 
         // Provisiona automaticamente se não existir
         if (usuario == null)
@@ -125,21 +113,36 @@ public class AuthController : ControllerBase
                 EhVerificado = tokenInfo.EmailVerified
             };
 
-            _context.Usuarios.Add(usuario);
-            await _context.SaveChangesAsync();
+            context.Usuarios.Add(usuario);
+            await context.SaveChangesAsync();
         }
 
-        // Emite nosso JWT
-        var token = _tokenService.GerarToken(usuario);
+        // Emite nosso JWT (access token)
+        var accessToken = tokenService.GerarToken(usuario);
 
-        return Ok(new UsuarioRespostaDTO
+        // Se você ainda não tem refresh token implementado,
+        // pode retornar null e o frontend tratará como opcional.
+        string? refreshToken = null;
+
+        // Monta resposta no formato esperado pelo frontend
+        var response = new AuthResponseDTO
         {
-            Id = usuario.Id,
-            Nome = usuario.Nome,
-            Email = usuario.Email,
-            Papel = usuario.Papel,
-            EhVerificado = usuario.EhVerificado,
-            Token = token
-        });
+            User = new BackendUserDTO
+            {
+                Id = usuario.Id,
+                Nome = usuario.Nome,
+                Email = usuario.Email,
+                Papel = usuario.Papel,
+                EhVerificado = usuario.EhVerificado,
+                Avatar = request.Avatar // se quiser, pode persistir esse campo no futuro
+            },
+            Tokens = new AuthTokensDTO
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            }
+        };
+
+        return Ok(response);
     }
 }
