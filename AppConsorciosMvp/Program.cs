@@ -21,6 +21,7 @@ var jwtSecret = configuration["JWT:Secret"] ??
 builder.Services.AddControllers();
 
 // Registrar serviços customizados
+builder.Services.AddScoped<ParametrosService>();
 builder.Services.AddScoped<AzureBlobService>();
 
 // Configurar banco de dados

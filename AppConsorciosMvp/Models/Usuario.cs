@@ -48,5 +48,10 @@ namespace AppConsorciosMvp.Models
         /// Lista de cartas de consórcio associadas a este usuário (como vendedor)
         /// </summary>
         public ICollection<CartaConsorcio>? CartasConsorcio { get; set; }
+
+        /// <summary>
+        /// Propostas de negociação em que este usuário participa como comprador
+        /// </summary>
+        public ICollection<PropostaNegociacao>? PropostasComoComprador { get; set; }
     }
 }

@@ -66,7 +66,7 @@ namespace AppConsorciosMvp.Controllers
                 if (documentoExistente != null)
                 {
                     // Excluir o blob antigo
-                    await _blobService.DeleteAsync(documentoExistente.BlobName);
+                    await _blobService.DeleteAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documentoExistente.BlobName);
                     _context.DocumentosUsuario.Remove(documentoExistente);
                 }
 
@@ -181,7 +181,7 @@ namespace AppConsorciosMvp.Controllers
                     return Forbid("Acesso negado");
                 }
 
-                var (stream, contentType) = await _blobService.DownloadAsync(documento.BlobName);
+                var (stream, contentType) = await _blobService.DownloadAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documento.BlobName);
 
                 return File(stream, contentType, documento.NomeArquivo);
             }
@@ -284,7 +284,7 @@ namespace AppConsorciosMvp.Controllers
                 }
 
                 // Excluir do Azure Blob Storage
-                await _blobService.DeleteAsync(documento.BlobName);
+                await _blobService.DeleteAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documento.BlobName);
 
                 // Excluir do banco
                 _context.DocumentosUsuario.Remove(documento);

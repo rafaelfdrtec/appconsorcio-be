@@ -4,51 +4,43 @@ using Azure.Storage.Blobs.Models;
 namespace AppConsorciosMvp.Services
 {
     /// <summary>
-    /// Serviço para gerenciar arquivos no Azure Blob Storage
+    /// Serviço para gerenciar arquivos no Azure Blob Storage com suporte a múltiplos containers
+    /// e nomes definidos via parâmetros de sistema no banco de dados.
     /// </summary>
     public class AzureBlobService
     {
         private readonly BlobServiceClient _blobServiceClient;
-        private readonly string _containerName;
+        private readonly ParametrosService _parametros;
 
-        public AzureBlobService(IConfiguration configuration)
+        // Chaves de parâmetro para containers
+        public const string ParamContainerDocumentosUsuarios = "Azure.Container.DocumentosUsuarios";
+        public const string ParamContainerAnexosPropostas = "Azure.Container.AnexosPropostas";
+        public const string ParamContainerAnexosCartas = "Azure.Container.AnexosCartas";
+        public const string ParamContainerDefault = "Azure.Container.Default";
+
+        public AzureBlobService(IConfiguration configuration, ParametrosService parametros)
         {
-            var connectionString = configuration.GetConnectionString("AzureStorage");
-            _containerName = configuration["AzureStorage:ContainerName"] ?? "documentos";
+            var connectionString = configuration.GetConnectionString("AzureStorage")
+                ?? throw new InvalidOperationException("String de conexão do Azure Storage não configurada ('AzureStorage').");
             _blobServiceClient = new BlobServiceClient(connectionString);
+            _parametros = parametros;
         }
 
+        // ========= Uploads especializados =========
+
         /// <summary>
-        /// Faz upload de um arquivo para o Azure Blob Storage
+        /// Upload de documento de usuário (PII) para o container específico configurado
         /// </summary>
-        /// <param name="stream">Stream do arquivo</param>
-        /// <param name="fileName">Nome do arquivo</param>
-        /// <param name="contentType">Tipo de conteúdo</param>
-        /// <param name="usuarioId">ID do usuário</param>
-        /// <param name="tipoDocumento">Tipo do documento</param>
-        /// <returns>Informações do blob criado</returns>
-        public async Task<(string BlobName, string BlobUrl)> UploadAsync(
-            Stream stream, 
-            string fileName, 
-            string contentType, 
-            int usuarioId, 
+        public async Task<(string BlobName, string BlobUrl)> UploadDocumentoUsuarioAsync(
+            Stream stream,
+            string fileName,
+            string contentType,
+            int usuarioId,
             string tipoDocumento)
         {
-            // Gerar nome único do blob
+            var containerName = await _parametros.GetValorOrDefaultAsync(ParamContainerDocumentosUsuarios, "documentos-usuarios");
             var extension = Path.GetExtension(fileName);
-            var blobName = $"documentos/{usuarioId}/{tipoDocumento}/{Guid.NewGuid()}{extension}";
-
-            // Obter container
-            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
-            await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
-
-            // Fazer upload
-            var blobClient = containerClient.GetBlobClient(blobName);
-
-            var blobHttpHeaders = new BlobHttpHeaders
-            {
-                ContentType = contentType
-            };
+            var blobName = $"usuarios/{usuarioId}/{tipoDocumento}/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid()}{extension}";
 
             var metadata = new Dictionary<string, string>
             {
@@ -58,9 +50,74 @@ namespace AppConsorciosMvp.Services
                 ["uploadDate"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
             };
 
+            return await UploadToContainerAsync(containerName, stream, blobName, contentType, metadata);
+        }
+
+        /// <summary>
+        /// Upload de anexo de proposta
+        /// </summary>
+        public async Task<(string BlobName, string BlobUrl)> UploadAnexoPropostaAsync(
+            Stream stream,
+            string fileName,
+            string contentType,
+            int propostaId)
+        {
+            var containerName = await _parametros.GetValorOrDefaultAsync(ParamContainerAnexosPropostas, "anexos-propostas");
+            var extension = Path.GetExtension(fileName);
+            var blobName = $"propostas/{propostaId}/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid()}{extension}";
+
+            var metadata = new Dictionary<string, string>
+            {
+                ["propostaId"] = propostaId.ToString(),
+                ["nomeOriginal"] = fileName,
+                ["uploadDate"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            return await UploadToContainerAsync(containerName, stream, blobName, contentType, metadata);
+        }
+
+        /// <summary>
+        /// Upload de anexo de carta
+        /// </summary>
+        public async Task<(string BlobName, string BlobUrl)> UploadAnexoCartaAsync(
+            Stream stream,
+            string fileName,
+            string contentType,
+            int cartaId)
+        {
+            var containerName = await _parametros.GetValorOrDefaultAsync(ParamContainerAnexosCartas, "anexos-cartas");
+            var extension = Path.GetExtension(fileName);
+            var blobName = $"cartas/{cartaId}/{DateTime.UtcNow:yyyy/MM}/{Guid.NewGuid()}{extension}";
+
+            var metadata = new Dictionary<string, string>
+            {
+                ["cartaId"] = cartaId.ToString(),
+                ["nomeOriginal"] = fileName,
+                ["uploadDate"] = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            return await UploadToContainerAsync(containerName, stream, blobName, contentType, metadata);
+        }
+
+        // ========= Métodos genéricos =========
+
+        private async Task<(string BlobName, string BlobUrl)> UploadToContainerAsync(
+            string containerName,
+            Stream stream,
+            string blobName,
+            string contentType,
+            IDictionary<string, string>? metadata = null)
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+            await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
+
+            var blobClient = containerClient.GetBlobClient(blobName);
+
+            var headers = new BlobHttpHeaders { ContentType = contentType };
+
             await blobClient.UploadAsync(stream, new BlobUploadOptions
             {
-                HttpHeaders = blobHttpHeaders,
+                HttpHeaders = headers,
                 Metadata = metadata
             });
 
@@ -68,69 +125,60 @@ namespace AppConsorciosMvp.Services
         }
 
         /// <summary>
-        /// Faz download de um arquivo do Azure Blob Storage
+        /// Download usando chave de parâmetro do container
         /// </summary>
-        /// <param name="blobName">Nome do blob</param>
-        /// <returns>Stream do arquivo</returns>
-        public async Task<(Stream Stream, string ContentType)> DownloadAsync(string blobName)
+        public async Task<(Stream Stream, string ContentType)> DownloadAsync(string containerParamKey, string blobName)
         {
-            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var containerName = await _parametros.GetValorOrDefaultAsync(containerParamKey, await _parametros.GetValorOrDefaultAsync(ParamContainerDefault, "documentos-usuarios"));
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
             var blobClient = containerClient.GetBlobClient(blobName);
 
             if (!await blobClient.ExistsAsync())
-            {
                 throw new FileNotFoundException($"Arquivo não encontrado: {blobName}");
-            }
 
-            var downloadResponse = await blobClient.DownloadStreamingAsync();
-            return (downloadResponse.Value.Content, downloadResponse.Value.Details.ContentType);
+            var response = await blobClient.DownloadStreamingAsync();
+            return (response.Value.Content, response.Value.Details.ContentType);
         }
 
         /// <summary>
-        /// Exclui um arquivo do Azure Blob Storage
+        /// Delete usando chave de parâmetro do container
         /// </summary>
-        /// <param name="blobName">Nome do blob</param>
-        /// <returns>True se excluído com sucesso</returns>
-        public async Task<bool> DeleteAsync(string blobName)
+        public async Task<bool> DeleteAsync(string containerParamKey, string blobName)
         {
-            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var containerName = await _parametros.GetValorOrDefaultAsync(containerParamKey, await _parametros.GetValorOrDefaultAsync(ParamContainerDefault, "documentos-usuarios"));
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
             var blobClient = containerClient.GetBlobClient(blobName);
-
-            var response = await blobClient.DeleteIfExistsAsync();
-            return response.Value;
+            var result = await blobClient.DeleteIfExistsAsync();
+            return result.Value;
         }
 
         /// <summary>
-        /// Verifica se um arquivo existe
+        /// Verifica existência usando chave de parâmetro do container
         /// </summary>
-        /// <param name="blobName">Nome do blob</param>
-        /// <returns>True se existe</returns>
-        public async Task<bool> ExistsAsync(string blobName)
+        public async Task<bool> ExistsAsync(string containerParamKey, string blobName)
         {
-            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var containerName = await _parametros.GetValorOrDefaultAsync(containerParamKey, await _parametros.GetValorOrDefaultAsync(ParamContainerDefault, "documentos-usuarios"));
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
             var blobClient = containerClient.GetBlobClient(blobName);
-
-            var response = await blobClient.ExistsAsync();
-            return response.Value;
+            var resp = await blobClient.ExistsAsync();
+            return resp.Value;
         }
 
         /// <summary>
-        /// Obtém informações de um blob
+        /// Propriedades de blob usando chave de parâmetro do container
         /// </summary>
-        /// <param name="blobName">Nome do blob</param>
-        /// <returns>Propriedades do blob</returns>
-        public async Task<BlobProperties?> GetBlobPropertiesAsync(string blobName)
+        public async Task<BlobProperties?> GetBlobPropertiesAsync(string containerParamKey, string blobName)
         {
-            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var containerName = await _parametros.GetValorOrDefaultAsync(containerParamKey, await _parametros.GetValorOrDefaultAsync(ParamContainerDefault, "documentos-usuarios"));
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
             var blobClient = containerClient.GetBlobClient(blobName);
-
-            if (!await blobClient.ExistsAsync())
-            {
-                return null;
-            }
-
+            if (!await blobClient.ExistsAsync()) return null;
             var response = await blobClient.GetPropertiesAsync();
             return response.Value;
         }
+
+        // ========= Compatibilidade com método antigo (documentos de usuário) =========
+        public Task<(string BlobName, string BlobUrl)> UploadAsync(Stream stream, string fileName, string contentType, int usuarioId, string tipoDocumento)
+            => UploadDocumentoUsuarioAsync(stream, fileName, contentType, usuarioId, tipoDocumento);
     }
 }

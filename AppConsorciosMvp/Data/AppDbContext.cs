@@ -12,25 +12,21 @@ namespace AppConsorciosMvp.Data
         {
         }
 
-        /// <summary>
-        /// DbSet de usuários
-        /// </summary>
+        // DbSets principais
         public DbSet<Usuario> Usuarios { get; set; } = null!;
-
-        /// <summary>
-        /// DbSet de cartas de consórcio
-        /// </summary>
         public DbSet<CartaConsorcio> CartasConsorcio { get; set; } = null!;
-
-        /// <summary>
-        /// DbSet de administradoras
-        /// </summary>
         public DbSet<Administradora> Administradoras { get; set; } = null!;
-
-        /// <summary>
-        /// DbSet de documentos dos usuários
-        /// </summary>
         public DbSet<DocumentoUsuario> DocumentosUsuario { get; set; } = null!;
+        public DbSet<PropostaNegociacao> PropostasNegociacao { get; set; } = null!;
+
+        // DbSets adicionais necessários
+        public DbSet<Arquivo> Arquivos { get; set; } = null!;
+        public DbSet<CartaAnexo> CartaAnexos { get; set; } = null!;
+        public DbSet<PropostaAnexo> PropostaAnexos { get; set; } = null!;
+        public DbSet<Anexo> Anexos { get; set; } = null!;
+        public DbSet<ParametroSistema> ParametrosSistema { get; set; } = null!;
+        // Alias para compatibilidade com serviços existentes
+        public DbSet<ParametroSistema> Parametros { get; set; } = null!;
 
         /// <summary>
         /// Configura o modelo ao criar o banco de dados
@@ -50,7 +46,7 @@ namespace AppConsorciosMvp.Data
                       .HasForeignKey(c => c.VendedorId)
                       .OnDelete(DeleteBehavior.Restrict); // Não permite deletar usuário se tem cartas
 
-                // Definir tipos de coluna específicos para PostgreSQL
+                // Tipos de coluna
                 entity.Property(e => e.Nome).HasColumnType("varchar(100)");
                 entity.Property(e => e.Email).HasColumnType("varchar(100)");
                 entity.Property(e => e.SenhaHash).HasColumnType("text");
@@ -72,16 +68,14 @@ namespace AppConsorciosMvp.Data
             // Configuração da entidade CartaConsorcio
             modelBuilder.Entity<CartaConsorcio>(entity =>
             {
-                // Índice para melhorar a performance de pesquisa por tipo de bem
+                // Índices para performance
                 entity.HasIndex(e => e.TipoBem);
-
-                // Índice para melhorar a performance de pesquisa por status
                 entity.HasIndex(e => e.Status);
-
-                // Índice para melhorar a performance de pesquisa por administradora
                 entity.HasIndex(e => e.AdministradoraId);
+                entity.HasIndex(e => e.CompradorId);
+                entity.HasIndex(e => e.PropostaVendaId);
 
-                // Definir tipos de coluna específicos para PostgreSQL
+                // Tipos de coluna
                 entity.Property(e => e.TipoBem).HasColumnType("varchar(50)");
                 entity.Property(e => e.Status).HasColumnType("varchar(20)");
                 entity.Property(e => e.Descricao).HasColumnType("text");
@@ -93,12 +87,24 @@ namespace AppConsorciosMvp.Data
                 entity.Property(e => e.ValorCredito).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.ValorEntrada).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.ValorParcela).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.DataVenda).HasColumnType("timestamp");
+                entity.Property(e => e.ValorVenda).HasColumnType("decimal(18,2)");
 
-                // Configurar relacionamento com Administradora
+                // Relacionamentos
                 entity.HasOne(c => c.Administradora)
-                    .WithMany(a => a.CartasConsorcio)
-                    .HasForeignKey(c => c.AdministradoraId)
-                    .OnDelete(DeleteBehavior.Restrict); // Não permite deletar administradora se tem cartas
+                      .WithMany(a => a.CartasConsorcio)
+                      .HasForeignKey(c => c.AdministradoraId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(c => c.Comprador)
+                      .WithMany()
+                      .HasForeignKey(c => c.CompradorId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(c => c.PropostaVenda)
+                      .WithMany()
+                      .HasForeignKey(c => c.PropostaVendaId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
 
             // Configuração da entidade DocumentoUsuario
@@ -110,9 +116,9 @@ namespace AppConsorciosMvp.Data
                 entity.HasIndex(e => e.UsuarioId);
                 entity.HasIndex(e => e.TipoDocumento);
                 entity.HasIndex(e => e.Status);
-                entity.HasIndex(e => new { e.UsuarioId, e.TipoDocumento }).IsUnique(); // Um documento por tipo por usuário
+                entity.HasIndex(e => new { e.UsuarioId, e.TipoDocumento }).IsUnique();
 
-                // Configurar propriedades
+                // Propriedades
                 entity.Property(e => e.TipoDocumento).IsRequired().HasColumnType("varchar(50)");
                 entity.Property(e => e.NomeArquivo).IsRequired().HasColumnType("varchar(255)");
                 entity.Property(e => e.BlobUrl).IsRequired().HasColumnType("text");
@@ -121,22 +127,81 @@ namespace AppConsorciosMvp.Data
                 entity.Property(e => e.Status).IsRequired().HasColumnType("varchar(20)").HasDefaultValue("pendente");
                 entity.Property(e => e.ObservacoesValidacao).HasColumnType("text");
 
-                // Relacionamento com Usuario (dono do documento)
                 entity.HasOne(d => d.Usuario)
                       .WithMany()
                       .HasForeignKey(d => d.UsuarioId)
                       .OnDelete(DeleteBehavior.Cascade);
 
-                // Relacionamento com Usuario (validador)
                 entity.HasOne(d => d.ValidadoPor)
                       .WithMany()
                       .HasForeignKey(d => d.ValidadoPorId)
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
+            // Configuração da entidade PropostaNegociacao
+            modelBuilder.Entity<PropostaNegociacao>(entity =>
+            {
+                entity.HasKey(e => e.Id);
 
-   
-           
+                // Índices para performance
+                entity.HasIndex(e => e.CartaConsorcioId);
+                entity.HasIndex(e => e.CompradorId);
+                entity.HasIndex(e => e.Status);
+
+                // Propriedades
+                entity.Property(e => e.Status).IsRequired().HasColumnType("varchar(20)");
+                entity.Property(e => e.MotivoCancelamento).HasColumnType("text");
+                entity.Property(e => e.Agio).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.AnexoNomeArquivo).HasColumnType("varchar(255)");
+                entity.Property(e => e.AnexoContentType).HasColumnType("varchar(100)");
+                entity.Property(e => e.AnexoBlobUrl).HasColumnType("text");
+                entity.Property(e => e.AnexoBlobName).HasColumnType("text");
+
+                // Relacionamentos
+                entity.HasOne(p => p.Carta)
+                      .WithMany(c => c.Propostas)
+                      .HasForeignKey(p => p.CartaConsorcioId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(p => p.Comprador)
+                      .WithMany(u => u.PropostasComoComprador!)
+                      .HasForeignKey(p => p.CompradorId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // Parametros do sistema
+            modelBuilder.Entity<ParametroSistema>(entity =>
+            {
+                entity.HasKey(p => p.Chave);
+            });
+
+            // Seed inicial de containers do Azure Blob Storage (Parametros)
+            modelBuilder.Entity<ParametroSistema>().HasData(
+                new ParametroSistema
+                {
+                    Chave = "Azure.Container.DocumentosUsuarios",
+                    Valor = "documentos-usuarios",
+                    Descricao = "Container para documentos de validação dos usuários (PII)"
+                },
+                new ParametroSistema
+                {
+                    Chave = "Azure.Container.AnexosPropostas",
+                    Valor = "anexos-propostas",
+                    Descricao = "Container para anexos de propostas"
+                },
+                new ParametroSistema
+                {
+                    Chave = "Azure.Container.AnexosCartas",
+                    Valor = "anexos-cartas",
+                    Descricao = "Container para anexos de cartas"
+                },
+                new ParametroSistema
+                {
+                    Chave = "Azure.Container.Default",
+                    Valor = "documentos-usuarios",
+                    Descricao = "Container padrão caso não definido"
+                }
+            );
         }
     }
 }
