@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AppConsorciosMvp.Models.Enums;
 
 namespace AppConsorciosMvp.DTOs
 {
@@ -8,7 +9,7 @@ namespace AppConsorciosMvp.DTOs
     public class CriarCartaConsorcioDTO
     {
         [Required(ErrorMessage = "A administradora é obrigatória")]
-        public Guid AdministradoraId { get; set; }
+        public int AdministradoraId { get; set; }
 
         [Required(ErrorMessage = "O valor do crédito é obrigatório")]
         [Range(0.01, double.MaxValue, ErrorMessage = "O valor do crédito deve ser maior que zero")]
@@ -31,8 +32,7 @@ namespace AppConsorciosMvp.DTOs
         public decimal ValorParcela { get; set; }
 
         [Required(ErrorMessage = "O tipo de bem é obrigatório")]
-        [RegularExpression("^(imovel|veiculo|servicos)$", ErrorMessage = "Tipo de bem inválido. Os valores permitidos são: imovel, veiculo ou servicos")]
-        public string TipoBem { get; set; } = string.Empty;
+        public CartaTipoBem TipoBem { get; set; }
 
         public string? Descricao { get; set; }
 
@@ -45,8 +45,7 @@ namespace AppConsorciosMvp.DTOs
         public string Grupo { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "O tipo de contemplação é obrigatório")]
-        [RegularExpression("^(sorteio|lance)$", ErrorMessage = "Tipo de contemplação inválido. Os valores permitidos são: sorteio ou lance")]
-        public string TipoContemplacao { get; set; } = string.Empty;
+        public CartaTipoContemplacao TipoContemplacao { get; set; }
 
         public DateTime? DataContemplacao { get; set; }
 
@@ -59,8 +58,7 @@ namespace AppConsorciosMvp.DTOs
     public class AtualizarStatusCartaDTO
     {
         [Required(ErrorMessage = "O status é obrigatório")]
-        [RegularExpression("^(disponivel|negociando|vendida)$", ErrorMessage = "Status inválido. Os valores permitidos são: disponivel, negociando ou vendida")]
-        public string Status { get; set; } = string.Empty;
+        public CartaStatus Status { get; set; }
     }
 
     /// <summary>
@@ -82,19 +80,19 @@ namespace AppConsorciosMvp.DTOs
         public int Id { get; set; }
         public int VendedorId { get; set; }
         public string NomeVendedor { get; set; } = string.Empty;
-        public Guid AdministradoraId { get; set; }
+        public int AdministradoraId { get; set; }
         public string NomeAdministradora { get; set; } = string.Empty;
         public decimal ValorCredito { get; set; }
         public decimal ValorEntrada { get; set; }
         public int ParcelasPagas { get; set; }
         public int ParcelasTotais { get; set; }
         public decimal ValorParcela { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public string TipoBem { get; set; } = string.Empty;
+        public CartaStatus Status { get; set; }
+        public CartaTipoBem TipoBem { get; set; }
         public string? Descricao { get; set; }
         public string NumeroCota { get; set; } = string.Empty;
         public string Grupo { get; set; } = string.Empty;
-        public string TipoContemplacao { get; set; } = string.Empty;
+        public CartaTipoContemplacao TipoContemplacao { get; set; }
         public DateTime? DataContemplacao { get; set; }
         public string? Observacoes { get; set; }
         public DateTime CriadoEm { get; set; }

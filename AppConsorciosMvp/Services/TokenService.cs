@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using AppConsorciosMvp.Models;
+using AppConsorciosMvp.Models.Enums;
 using Microsoft.IdentityModel.Tokens;
 
 namespace AppConsorciosMvp.Services
@@ -28,12 +29,21 @@ namespace AppConsorciosMvp.Services
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret não configurado"));
 
+            // Normaliza o papel para minúsculas nos claims (compatível com [Authorize(Roles = "...")])
+            var role = usuario.Papel switch
+            {
+                UsuarioPapel.Administrador => "admin",
+                UsuarioPapel.Vendedor => "vendedor",
+                UsuarioPapel.Comprador => "comprador",
+                _ => "comprador"
+            };
+
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
                 new Claim(ClaimTypes.Name, usuario.Nome),
                 new Claim(ClaimTypes.Email, usuario.Email),
-                new Claim(ClaimTypes.Role, usuario.Papel),
+                new Claim(ClaimTypes.Role, role),
                 new Claim("EhVerificado", usuario.EhVerificado.ToString())
             };
 

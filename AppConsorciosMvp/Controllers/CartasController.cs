@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AppConsorciosMvp.Data;
 using AppConsorciosMvp.DTOs;
 using AppConsorciosMvp.Models;
+using AppConsorciosMvp.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +43,7 @@ namespace AppConsorciosMvp.Controllers
             }
 
             // Verificar se a administradora está ativa
-            if (administradora.Status != "ativa")
+            if (administradora.Status != AdministradoraStatus.Ativa)
             {
                 return BadRequest("A administradora selecionada não está ativa");
             }
@@ -57,7 +58,7 @@ namespace AppConsorciosMvp.Controllers
                 ParcelasPagas = cartaDto.ParcelasPagas,
                 ParcelasTotais = cartaDto.ParcelasTotais,
                 ValorParcela = cartaDto.ValorParcela,
-                Status = "disponivel", // Status inicial
+                Status = CartaStatus.Disponivel, // Status inicial
                 TipoBem = cartaDto.TipoBem,
                 Descricao = cartaDto.Descricao,
                 NumeroCota = cartaDto.NumeroCota,
@@ -107,9 +108,9 @@ namespace AppConsorciosMvp.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<CartaConsorcioRespostaDTO>>> ObterCartasDisponiveis()
         {
-            // Buscar cartas com status "disponivel"
+            // Buscar cartas com status disponível
             var cartas = await context.CartasConsorcio
-                .Where(c => c.Status == "disponivel")
+                .Where(c => c.Status == CartaStatus.Disponivel)
                 .Include(c => c.Vendedor)
                 .Include(c => c.Administradora)
                 .ToListAsync();
@@ -204,14 +205,15 @@ namespace AppConsorciosMvp.Controllers
         {
             // Construir a consulta com base nos filtros
             IQueryable<CartaConsorcio> query = context.CartasConsorcio
-                .Where(c => c.Status == "disponivel") // Apenas cartas disponíveis
+                .Where(c => c.Status == CartaStatus.Disponivel) // Apenas cartas disponíveis
                 .Include(c => c.Vendedor)
                 .Include(c => c.Administradora);
 
             // Aplicar filtros se fornecidos
             if (!string.IsNullOrEmpty(filtros.TipoBem))
             {
-                query = query.Where(c => c.TipoBem == filtros.TipoBem);
+                var tipo = ParseCartaTipoBem(filtros.TipoBem);
+                query = query.Where(c => c.TipoBem == tipo);
             }
 
             if (filtros.ValorCreditoMinimo.HasValue)
@@ -382,22 +384,22 @@ namespace AppConsorciosMvp.Controllers
         /// <param name="statusAtual">Status atual da carta</param>
         /// <param name="novoStatus">Novo status</param>
         /// <returns>True se a transição for válida, False caso contrário</returns>
-        private bool EhTransicaoStatusValida(string statusAtual, string novoStatus)
+        private bool EhTransicaoStatusValida(CartaStatus statusAtual, CartaStatus novoStatus)
         {
             // Regras de transição:
-            // disponivel -> negociando -> vendida
-            // também permite disponivel -> vendida (em casos especiais)
-            // e negociando -> disponivel (caso a negociação falhe)
+            // Disponivel -> Negociando -> Vendida
+            // também permite Disponivel -> Vendida (em casos especiais)
+            // e Negociando -> Disponivel (caso a negociação falhe)
 
             switch (statusAtual)
             {
-                case "disponivel":
-                    return novoStatus == "negociando" || novoStatus == "vendida";
+                case CartaStatus.Disponivel:
+                    return novoStatus == CartaStatus.Negociando || novoStatus == CartaStatus.Vendida;
 
-                case "negociando":
-                    return novoStatus == "disponivel" || novoStatus == "vendida";
+                case CartaStatus.Negociando:
+                    return novoStatus == CartaStatus.Disponivel || novoStatus == CartaStatus.Vendida;
 
-                case "vendida":
+                case CartaStatus.Vendida:
                     // Uma vez vendida, não pode mudar o status
                     return false;
 
@@ -405,5 +407,15 @@ namespace AppConsorciosMvp.Controllers
                     return false;
             }
         }
+
+        private static CartaTipoBem ParseCartaTipoBem(string tipo) =>
+            (tipo ?? "").Trim().ToLower() switch
+            {
+                "imovel" => CartaTipoBem.Imovel,
+                "veiculo" => CartaTipoBem.Veiculo,
+                "servicos" => CartaTipoBem.Servico,
+                "servico" => CartaTipoBem.Servico,
+                _ => CartaTipoBem.Outro
+            };
     }
 }

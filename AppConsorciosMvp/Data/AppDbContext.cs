@@ -1,4 +1,5 @@
 using AppConsorciosMvp.Models;
+using AppConsorciosMvp.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppConsorciosMvp.Data
@@ -50,7 +51,9 @@ namespace AppConsorciosMvp.Data
                 entity.Property(e => e.Nome).HasColumnType("varchar(100)");
                 entity.Property(e => e.Email).HasColumnType("varchar(100)");
                 entity.Property(e => e.SenhaHash).HasColumnType("text");
-                entity.Property(e => e.Papel).HasColumnType("varchar(20)");
+                entity.Property(e => e.Papel)
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(20)");
             });
 
             // Configuração da entidade Administradora
@@ -62,7 +65,11 @@ namespace AppConsorciosMvp.Data
                 entity.Property(e => e.Cnpj).IsRequired().HasColumnType("varchar(18)");
                 entity.Property(e => e.Telefone).HasColumnType("varchar(20)");
                 entity.Property(e => e.Email).HasColumnType("varchar(200)");
-                entity.Property(e => e.Status).IsRequired().HasColumnType("varchar(10)").HasDefaultValue("ativa");
+                entity.Property(e => e.Status)
+                      .IsRequired()
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(10)")
+                      .HasDefaultValue(AdministradoraStatus.Ativa);
             });
 
             // Configuração da entidade CartaConsorcio
@@ -76,12 +83,19 @@ namespace AppConsorciosMvp.Data
                 entity.HasIndex(e => e.PropostaVendaId);
 
                 // Tipos de coluna
-                entity.Property(e => e.TipoBem).HasColumnType("varchar(50)");
-                entity.Property(e => e.Status).HasColumnType("varchar(20)");
+                entity.Property(e => e.TipoBem)
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(50)");
+                entity.Property(e => e.Status)
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(20)");
                 entity.Property(e => e.Descricao).HasColumnType("text");
                 entity.Property(e => e.NumeroCota).IsRequired().HasColumnType("varchar(20)");
                 entity.Property(e => e.Grupo).IsRequired().HasColumnType("varchar(20)");
-                entity.Property(e => e.TipoContemplacao).IsRequired().HasColumnType("varchar(10)");
+                entity.Property(e => e.TipoContemplacao)
+                      .IsRequired()
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(10)");
                 entity.Property(e => e.DataContemplacao).HasColumnType("timestamp");
                 entity.Property(e => e.Observacoes).HasColumnType("text");
                 entity.Property(e => e.ValorCredito).HasColumnType("decimal(18,2)");
@@ -119,12 +133,19 @@ namespace AppConsorciosMvp.Data
                 entity.HasIndex(e => new { e.UsuarioId, e.TipoDocumento }).IsUnique();
 
                 // Propriedades
-                entity.Property(e => e.TipoDocumento).IsRequired().HasColumnType("varchar(50)");
+                entity.Property(e => e.TipoDocumento)
+                      .IsRequired()
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(50)");
                 entity.Property(e => e.NomeArquivo).IsRequired().HasColumnType("varchar(255)");
                 entity.Property(e => e.BlobUrl).IsRequired().HasColumnType("text");
                 entity.Property(e => e.BlobName).IsRequired().HasColumnType("text");
                 entity.Property(e => e.ContentType).IsRequired().HasColumnType("varchar(100)");
-                entity.Property(e => e.Status).IsRequired().HasColumnType("varchar(20)").HasDefaultValue("pendente");
+                entity.Property(e => e.Status)
+                      .IsRequired()
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(20)")
+                      .HasDefaultValue(DocumentoStatus.Pendente);
                 entity.Property(e => e.ObservacoesValidacao).HasColumnType("text");
 
                 entity.HasOne(d => d.Usuario)
@@ -149,7 +170,10 @@ namespace AppConsorciosMvp.Data
                 entity.HasIndex(e => e.Status);
 
                 // Propriedades
-                entity.Property(e => e.Status).IsRequired().HasColumnType("varchar(20)");
+                entity.Property(e => e.Status)
+                      .IsRequired()
+                      .HasConversion<string>()
+                      .HasColumnType("varchar(20)");
                 entity.Property(e => e.MotivoCancelamento).HasColumnType("text");
                 entity.Property(e => e.Agio).HasColumnType("decimal(18,2)");
                 entity.Property(e => e.AnexoNomeArquivo).HasColumnType("varchar(255)");

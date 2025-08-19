@@ -70,7 +70,6 @@ namespace AppConsorciosMvp.Controllers
 
             var arquivo = new Arquivo
             {
-                Id = Guid.NewGuid(),
                 NomeOriginal = arq.FileName,
                 ContentType = arq.ContentType,
                 TamanhoBytes = arq.Length,
@@ -82,7 +81,6 @@ namespace AppConsorciosMvp.Controllers
 
             var vinculo = new CartaAnexo
             {
-                Id = Guid.NewGuid(),
                 CartaConsorcioId = carta.Id,
                 ArquivoId = arquivo.Id,
                 CriadoEm = DateTime.UtcNow

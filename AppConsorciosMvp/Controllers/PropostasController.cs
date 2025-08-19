@@ -37,7 +37,7 @@ namespace AppConsorciosMvp.Controllers
 
             var carta = await _db.CartasConsorcio.FirstOrDefaultAsync(c => c.Id == dto.CartaConsorcioId);
             if (carta == null) return NotFound("Carta não encontrada");
-            if (carta.Status == "vendida") return BadRequest("Carta já vendida");
+            if (carta.Status == CartaStatus.Vendida) return BadRequest("Carta já vendida");
 
             var proposta = new PropostaNegociacao
             {
@@ -110,7 +110,7 @@ namespace AppConsorciosMvp.Controllers
             if (proposta.Status == PropostaStatus.Efetivada) return BadRequest("Proposta já efetivada");
 
             var carta = proposta.Carta!;
-            if (carta.Status == "vendida") return BadRequest("Carta já vendida");
+            if (carta.Status == CartaStatus.Vendida) return BadRequest("Carta já vendida");
 
             if (!(carta.VendedorId == usuarioId || role == "admin"))
                 return Forbid();
@@ -119,7 +119,7 @@ namespace AppConsorciosMvp.Controllers
             proposta.Status = PropostaStatus.Efetivada;
             proposta.EfetivadaEm = DateTime.UtcNow;
 
-            carta.Status = "vendida";
+            carta.Status = CartaStatus.Vendida;
             carta.DataVenda = DateTime.UtcNow;
             carta.ValorVenda = dto.ValorVenda;
             carta.CompradorId = proposta.CompradorId;
@@ -155,7 +155,6 @@ namespace AppConsorciosMvp.Controllers
 
             var arquivo = new Arquivo
             {
-                Id = Guid.NewGuid(),
                 NomeOriginal = arq.FileName,
                 ContentType = arq.ContentType,
                 TamanhoBytes = arq.Length,
@@ -167,7 +166,6 @@ namespace AppConsorciosMvp.Controllers
 
             var vinculo = new PropostaAnexo
             {
-                Id = Guid.NewGuid(),
                 PropostaNegociacaoId = proposta.Id,
                 ArquivoId = arquivo.Id,
                 CriadoEm = DateTime.UtcNow

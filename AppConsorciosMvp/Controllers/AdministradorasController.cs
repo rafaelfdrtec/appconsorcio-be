@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AppConsorciosMvp.Data;
 using AppConsorciosMvp.DTOs;
 using AppConsorciosMvp.Models;
+using AppConsorciosMvp.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,13 +22,14 @@ namespace AppConsorciosMvp.Controllers
         }
 
         /// <summary>
-        /// Lista todas as administradoras (apenas para administradores)
+        /// Lista todas as administradoras (acessível a qualquer usuário autenticado)
         /// </summary>
         [HttpGet]
+        [Authorize] // Acesso liberado para qualquer usuário autenticado (não exige papel de administrador)
         public async Task<ActionResult<IEnumerable<AdministradoraRespostaDTO>>> ListarAdministradoras()
         {
-            //a consulta de administradoras deve ser liberada para usuarios logados 
-            //pois temos a tela de venda de cotas que deve permitir a seleção das cadastradas
+            // a consulta de administradoras deve ser liberada para usuários logados
+            // pois temos a tela de venda de cotas que deve permitir a seleção das cadastradas
 
             var administradoras = await _context.Administradoras
                 .OrderBy(a => a.Nome)
@@ -40,7 +42,7 @@ namespace AppConsorciosMvp.Controllers
                 Cnpj = a.Cnpj,
                 Telefone = a.Telefone,
                 Email = a.Email,
-                Status = a.Status,
+                Status = a.Status.ToString().ToLower(),
                 CreatedAt = a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
                 UpdatedAt = a.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss")
             });
@@ -51,8 +53,8 @@ namespace AppConsorciosMvp.Controllers
         /// <summary>
         /// Busca uma administradora específica por ID (apenas para administradores)
         /// </summary>
-        [HttpGet("{id}")]
-        public async Task<ActionResult<AdministradoraRespostaDTO>> BuscarAdministradora(Guid id)
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<AdministradoraRespostaDTO>> BuscarAdministradora(int id)
         {
             if (!IsUserAdmin())
             {
@@ -73,7 +75,7 @@ namespace AppConsorciosMvp.Controllers
                 Cnpj = administradora.Cnpj,
                 Telefone = administradora.Telefone,
                 Email = administradora.Email,
-                Status = administradora.Status,
+                Status = administradora.Status.ToString().ToLower(),
                 CreatedAt = administradora.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
                 UpdatedAt = administradora.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss")
             };
@@ -108,12 +110,11 @@ namespace AppConsorciosMvp.Controllers
 
             var administradora = new Administradora
             {
-                Id = Guid.NewGuid(),
                 Nome = dto.Nome,
                 Cnpj = dto.Cnpj,
                 Telefone = dto.Telefone,
                 Email = dto.Email,
-                Status = dto.Status,
+                Status = ParseAdministradoraStatus(dto.Status),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -128,7 +129,7 @@ namespace AppConsorciosMvp.Controllers
                 Cnpj = administradora.Cnpj,
                 Telefone = administradora.Telefone,
                 Email = administradora.Email,
-                Status = administradora.Status,
+                Status = administradora.Status.ToString().ToLower(),
                 CreatedAt = administradora.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
                 UpdatedAt = administradora.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss")
             };
@@ -139,8 +140,8 @@ namespace AppConsorciosMvp.Controllers
         /// <summary>
         /// Atualiza uma administradora existente (apenas para administradores)
         /// </summary>
-        [HttpPut("{id}")]
-        public async Task<IActionResult> AtualizarAdministradora(Guid id, AtualizarAdministradoraDTO dto)
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> AtualizarAdministradora(int id, AtualizarAdministradoraDTO dto)
         {
             if (!IsUserAdmin())
             {
@@ -172,7 +173,7 @@ namespace AppConsorciosMvp.Controllers
             administradora.Cnpj = dto.Cnpj;
             administradora.Telefone = dto.Telefone;
             administradora.Email = dto.Email;
-            administradora.Status = dto.Status;
+            administradora.Status = ParseAdministradoraStatus(dto.Status);
             administradora.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -194,8 +195,8 @@ namespace AppConsorciosMvp.Controllers
         /// <summary>
         /// Exclui uma administradora (apenas para administradores)
         /// </summary>
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> ExcluirAdministradora(Guid id)
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> ExcluirAdministradora(int id)
         {
             if (!IsUserAdmin())
             {
@@ -224,7 +225,7 @@ namespace AppConsorciosMvp.Controllers
             return NoContent();
         }
 
-        private bool AdministradoraExists(Guid id)
+        private bool AdministradoraExists(int id)
         {
             return _context.Administradoras.Any(e => e.Id == id);
         }
@@ -234,5 +235,13 @@ namespace AppConsorciosMvp.Controllers
             var papel = User.FindFirst(ClaimTypes.Role)?.Value;
             return papel == "admin";
         }
+
+        private static AdministradoraStatus ParseAdministradoraStatus(string status) =>
+            (status ?? "").Trim().ToLower() switch
+            {
+                "ativa" => AdministradoraStatus.Ativa,
+                "inativa" => AdministradoraStatus.Inativa,
+                _ => AdministradoraStatus.Ativa
+            };
     }
 }

@@ -1,6 +1,7 @@
 using AppConsorciosMvp.Data;
 using AppConsorciosMvp.DTOs;
 using AppConsorciosMvp.Models;
+using AppConsorciosMvp.Models.Enums;
 using AppConsorciosMvp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -50,7 +51,7 @@ public class AuthController(
             Id = usuario.Id,
             Nome = usuario.Nome,
             Email = usuario.Email,
-            Papel = usuario.Papel,
+            Papel = PapelToString(usuario.Papel),
             EhVerificado = usuario.EhVerificado,
             Token = token
         });
@@ -109,7 +110,7 @@ public class AuthController(
             {
                 Nome = nome,
                 Email = tokenInfo.Email,
-                Papel = "Usuario",
+                Papel = UsuarioPapel.Comprador,
                 EhVerificado = tokenInfo.EmailVerified
             };
 
@@ -132,7 +133,7 @@ public class AuthController(
                 Id = usuario.Id,
                 Nome = usuario.Nome,
                 Email = usuario.Email,
-                Papel = usuario.Papel,
+                Papel = PapelToString(usuario.Papel),
                 EhVerificado = usuario.EhVerificado,
                 Avatar = request.Avatar // se quiser, pode persistir esse campo no futuro
             },
@@ -145,4 +146,13 @@ public class AuthController(
 
         return Ok(response);
     }
+
+    private static string PapelToString(UsuarioPapel papel) =>
+        papel switch
+        {
+            UsuarioPapel.Administrador => "admin",
+            UsuarioPapel.Vendedor => "vendedor",
+            UsuarioPapel.Comprador => "comprador",
+            _ => "comprador"
+        };
 }

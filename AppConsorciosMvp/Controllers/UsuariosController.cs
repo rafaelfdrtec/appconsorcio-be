@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AppConsorciosMvp.Data;
 using AppConsorciosMvp.DTOs;
 using AppConsorciosMvp.Models;
+using AppConsorciosMvp.Models.Enums;
 using AppConsorciosMvp.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,7 +47,7 @@ namespace AppConsorciosMvp.Controllers
                 Nome = registroDTO.Nome,
                 Email = registroDTO.Email,
                 SenhaHash = _passwordHashService.CriarHash(registroDTO.Senha),
-                Papel = registroDTO.Papel,
+                Papel = ParseUsuarioPapel(registroDTO.Papel),
                 EhVerificado = false // Por padrão, o usuário não é verificado
             };
 
@@ -62,7 +63,7 @@ namespace AppConsorciosMvp.Controllers
                 Id = usuario.Id,
                 Nome = usuario.Nome,
                 Email = usuario.Email,
-                Papel = usuario.Papel,
+                Papel = PapelToString(usuario.Papel),
                 EhVerificado = usuario.EhVerificado,
                 Token = token
             });
@@ -100,7 +101,7 @@ namespace AppConsorciosMvp.Controllers
                 Id = usuario.Id,
                 Nome = usuario.Nome,
                 Email = usuario.Email,
-                Papel = usuario.Papel,
+                Papel = PapelToString(usuario.Papel),
                 EhVerificado = usuario.EhVerificado,
                 Token = token
             });
@@ -142,7 +143,7 @@ namespace AppConsorciosMvp.Controllers
                 Id = usuario.Id,
                 Nome = usuario.Nome,
                 Email = usuario.Email,
-                Papel = usuario.Papel,
+                Papel = PapelToString(usuario.Papel),
                 EhVerificado = usuario.EhVerificado,
                 Token = "" // Não incluímos token em operações de consulta
             });
@@ -177,10 +178,27 @@ namespace AppConsorciosMvp.Controllers
                 Id = usuario.Id,
                 Nome = usuario.Nome,
                 Email = usuario.Email,
-                Papel = usuario.Papel,
+                Papel = PapelToString(usuario.Papel),
                 EhVerificado = usuario.EhVerificado,
                 Token = "" // Não incluímos token em operações de consulta
             });
         }
+
+        private static UsuarioPapel ParseUsuarioPapel(string papel) =>
+            (papel ?? "").Trim().ToLower() switch
+            {
+                "admin" => UsuarioPapel.Administrador,
+                "vendedor" => UsuarioPapel.Vendedor,
+                _ => UsuarioPapel.Comprador
+            };
+
+        private static string PapelToString(UsuarioPapel papel) =>
+            papel switch
+            {
+                UsuarioPapel.Administrador => "admin",
+                UsuarioPapel.Vendedor => "vendedor",
+                UsuarioPapel.Comprador => "comprador",
+                _ => "comprador"
+            };
     }
 }
