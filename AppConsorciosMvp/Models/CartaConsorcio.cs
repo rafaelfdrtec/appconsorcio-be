@@ -18,7 +18,7 @@ namespace AppConsorciosMvp.Models
         public Usuario? Vendedor { get; set; }
 
         [Required(ErrorMessage = "A administradora é obrigatória")]
-        public Guid AdministradoraId { get; set; }
+        public int AdministradoraId { get; set; }
 
         [ForeignKey("AdministradoraId")]
         public Administradora? Administradora { get; set; }
@@ -47,11 +47,10 @@ namespace AppConsorciosMvp.Models
         public decimal ValorParcela { get; set; }
 
         [Required(ErrorMessage = "O status é obrigatório")]
-        [StringLength(20)]
-        public string Status { get; set; } = "disponivel";
+        public CartaStatus Status { get; set; } = CartaStatus.Disponivel;
 
         [Required(ErrorMessage = "O tipo de bem é obrigatório")]
-        public string TipoBem { get; set; } = string.Empty;
+        public CartaTipoBem TipoBem { get; set; } = CartaTipoBem.Outro;
 
         public string? Descricao { get; set; }
 
@@ -64,8 +63,7 @@ namespace AppConsorciosMvp.Models
         public string Grupo { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "O tipo de contemplação é obrigatório")]
-        [StringLength(10, ErrorMessage = "O tipo de contemplação deve ter no máximo 10 caracteres")]
-        public string TipoContemplacao { get; set; } = string.Empty;
+        public CartaTipoContemplacao TipoContemplacao { get; set; } = CartaTipoContemplacao.Outro;
 
         public DateTime? DataContemplacao { get; set; }
 

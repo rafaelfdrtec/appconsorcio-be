@@ -8,7 +8,7 @@ namespace AppConsorciosMvp.Models
     /// </summary>
     public class Anexo
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         /// <summary>
         /// Proposta à qual este anexo pertence

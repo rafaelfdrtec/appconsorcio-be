@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AppConsorciosMvp.Models.Enums;
 
 namespace AppConsorciosMvp.Models
 {
@@ -10,7 +11,7 @@ namespace AppConsorciosMvp.Models
         /// <summary>
         /// Identificador único da administradora
         /// </summary>
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         /// <summary>
         /// Nome da administradora
@@ -43,8 +44,7 @@ namespace AppConsorciosMvp.Models
         /// Status da administradora (ativa ou inativa)
         /// </summary>
         [Required(ErrorMessage = "Status é obrigatório")]
-        [StringLength(10, ErrorMessage = "Status deve ter no máximo 10 caracteres")]
-        public string Status { get; set; } = "ativa";
+        public AdministradoraStatus Status { get; set; } = AdministradoraStatus.Ativa;
 
         /// <summary>
         /// Data de criação do registro

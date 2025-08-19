@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using AppConsorciosMvp.Models.Enums;
 
 namespace AppConsorciosMvp.Models
 {
@@ -11,7 +12,7 @@ namespace AppConsorciosMvp.Models
         /// <summary>
         /// Identificador único do documento
         /// </summary>
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         /// <summary>
         /// ID do usuário que enviou o documento
@@ -29,8 +30,7 @@ namespace AppConsorciosMvp.Models
         /// Tipo do documento (RG, CPF, CNH, etc.)
         /// </summary>
         [Required(ErrorMessage = "O tipo do documento é obrigatório")]
-        [StringLength(50, ErrorMessage = "O tipo do documento deve ter no máximo 50 caracteres")]
-        public string TipoDocumento { get; set; } = string.Empty;
+        public DocumentoTipo TipoDocumento { get; set; } = DocumentoTipo.Outro;
 
         /// <summary>
         /// Nome original do arquivo
@@ -69,8 +69,7 @@ namespace AppConsorciosMvp.Models
         /// Status da validação do documento
         /// </summary>
         [Required(ErrorMessage = "O status é obrigatório")]
-        [StringLength(20, ErrorMessage = "O status deve ter no máximo 20 caracteres")]
-        public string Status { get; set; } = "pendente"; // pendente, aprovado, rejeitado
+        public DocumentoStatus Status { get; set; } = DocumentoStatus.Pendente; // pendente, aprovado, rejeitado
 
         /// <summary>
         /// Observações sobre a validação

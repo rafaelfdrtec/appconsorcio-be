@@ -8,7 +8,7 @@ namespace AppConsorciosMvp.Models
     /// </summary>
     public class PropostaAnexo
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         [Required]
         public int PropostaNegociacaoId { get; set; }
@@ -17,7 +17,7 @@ namespace AppConsorciosMvp.Models
         public PropostaNegociacao? Proposta { get; set; }
 
         [Required]
-        public Guid ArquivoId { get; set; }
+        public int ArquivoId { get; set; }
 
         [ForeignKey(nameof(ArquivoId))]
         public Arquivo? Arquivo { get; set; }

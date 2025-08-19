@@ -7,7 +7,7 @@ namespace AppConsorciosMvp.Models
     /// </summary>
     public class Arquivo
     {
-        public Guid Id { get; set; }
+        public int Id { get; set; }
 
         [Required]
         [StringLength(255)]

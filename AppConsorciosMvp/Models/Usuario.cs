@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AppConsorciosMvp.Models.Enums;
 
 namespace AppConsorciosMvp.Models
 {
@@ -37,7 +38,7 @@ namespace AppConsorciosMvp.Models
         /// Papel do usuário no sistema (admin, vendedor, comprador)
         /// </summary>
         [Required(ErrorMessage = "O papel do usuário é obrigatório")]
-        public string Papel { get; set; } = "comprador";  // Valor padrão
+        public UsuarioPapel Papel { get; set; } = UsuarioPapel.Comprador;  // Valor padrão
 
         /// <summary>
         /// Indica se o usuário foi verificado pela equipe administrativa
