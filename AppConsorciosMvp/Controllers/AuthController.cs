@@ -67,7 +67,7 @@ public class AuthController(
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<AuthResponseDTO>> LoginComGoogle([FromBody] GoogleAuthRequest request)
+    public async Task<ActionResult<AuthResponseDTO>> LoginComGoogle([FromBody] GoogleAuthRequest? request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.IdToken))
         {
@@ -152,7 +152,6 @@ public class AuthController(
         {
             UsuarioPapel.Administrador => "admin",
             UsuarioPapel.Vendedor => "vendedor",
-            UsuarioPapel.Comprador => "comprador",
             _ => "comprador"
         };
 }

@@ -12,15 +12,8 @@ namespace AppConsorciosMvp.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Requer autenticação
-    public class AdministradorasController : ControllerBase
+    public class AdministradorasController(AppDbContext context) : ControllerBase
     {
-        private readonly AppDbContext _context;
-
-        public AdministradorasController(AppDbContext context)
-        {
-            _context = context;
-        }
-
         /// <summary>
         /// Lista todas as administradoras (acessível a qualquer usuário autenticado)
         /// </summary>
@@ -31,7 +24,7 @@ namespace AppConsorciosMvp.Controllers
             // a consulta de administradoras deve ser liberada para usuários logados
             // pois temos a tela de venda de cotas que deve permitir a seleção das cadastradas
 
-            var administradoras = await _context.Administradoras
+            var administradoras = await context.Administradoras
                 .OrderBy(a => a.Nome)
                 .ToListAsync();
 
@@ -61,7 +54,7 @@ namespace AppConsorciosMvp.Controllers
                 return Forbid("Acesso negado. Apenas administradores podem acessar este recurso.");
             }
 
-            var administradora = await _context.Administradoras.FindAsync(id);
+            var administradora = await context.Administradoras.FindAsync(id);
 
             if (administradora == null)
             {
@@ -100,7 +93,7 @@ namespace AppConsorciosMvp.Controllers
             }
 
             // Verificar se já existe uma administradora com o mesmo CNPJ
-            var cnpjExiste = await _context.Administradoras
+            var cnpjExiste = await context.Administradoras
                 .AnyAsync(a => a.Cnpj == dto.Cnpj);
 
             if (cnpjExiste)
@@ -119,8 +112,8 @@ namespace AppConsorciosMvp.Controllers
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _context.Administradoras.Add(administradora);
-            await _context.SaveChangesAsync();
+            context.Administradoras.Add(administradora);
+            await context.SaveChangesAsync();
 
             var result = new AdministradoraRespostaDTO
             {
@@ -153,7 +146,7 @@ namespace AppConsorciosMvp.Controllers
                 return BadRequest(ModelState);
             }
 
-            var administradora = await _context.Administradoras.FindAsync(id);
+            var administradora = await context.Administradoras.FindAsync(id);
 
             if (administradora == null)
             {
@@ -161,7 +154,7 @@ namespace AppConsorciosMvp.Controllers
             }
 
             // Verificar se o CNPJ já existe em outra administradora
-            var cnpjExiste = await _context.Administradoras
+            var cnpjExiste = await context.Administradoras
                 .AnyAsync(a => a.Cnpj == dto.Cnpj && a.Id != id);
 
             if (cnpjExiste)
@@ -178,7 +171,7 @@ namespace AppConsorciosMvp.Controllers
 
             try
             {
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -203,7 +196,7 @@ namespace AppConsorciosMvp.Controllers
                 return Forbid("Acesso negado. Apenas administradores podem acessar este recurso.");
             }
 
-            var administradora = await _context.Administradoras.FindAsync(id);
+            var administradora = await context.Administradoras.FindAsync(id);
 
             if (administradora == null)
             {
@@ -211,7 +204,7 @@ namespace AppConsorciosMvp.Controllers
             }
 
             // Verificar se existem cartas de consórcio vinculadas a esta administradora
-            var possuiCartas = await _context.CartasConsorcio
+            var possuiCartas = await context.CartasConsorcio
                 .AnyAsync(c => c.AdministradoraId == id);
 
             if (possuiCartas)
@@ -219,15 +212,15 @@ namespace AppConsorciosMvp.Controllers
                 return BadRequest("Não é possível excluir esta administradora pois existem cartas de consórcio vinculadas a ela.");
             }
 
-            _context.Administradoras.Remove(administradora);
-            await _context.SaveChangesAsync();
+            context.Administradoras.Remove(administradora);
+            await context.SaveChangesAsync();
 
             return NoContent();
         }
 
         private bool AdministradoraExists(int id)
         {
-            return _context.Administradoras.Any(e => e.Id == id);
+            return context.Administradoras.Any(e => e.Id == id);
         }
 
         private bool IsUserAdmin()

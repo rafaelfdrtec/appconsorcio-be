@@ -11,21 +11,12 @@ namespace AppConsorciosMvp.Controllers
     [ApiController]
     [Route("chat")]
     [Authorize]
-    public class ChatController : ControllerBase
+    public abstract class ChatController(AppDbContext db, IHubContext<ChatHub> chatHub) : ControllerBase
     {
-        private readonly AppDbContext _db;
-        private readonly IHubContext<ChatHub> _chatHub;
-
-        public ChatController(AppDbContext db, IHubContext<ChatHub> chatHub)
-        {
-            _db = db;
-            _chatHub = chatHub;
-        }
-
         [HttpGet("threads")]
         public async Task<ActionResult<IEnumerable<object>>> GetThreads([FromQuery] Guid transacaoId)
         {
-            var threads = await _db.ChatThreads.Where(t => t.TransacaoId == transacaoId).ToListAsync();
+            var threads = await db.ChatThreads.Where(t => t.TransacaoId == transacaoId).ToListAsync();
             return Ok(threads.Select(t => new { t.Id, t.Kind, t.TransacaoId }));
         }
 
@@ -33,7 +24,7 @@ namespace AppConsorciosMvp.Controllers
         public async Task<ActionResult<IEnumerable<object>>> GetMessages([FromQuery] Guid threadId, [FromQuery] int page = 1)
         {
             const int pageSize = 20;
-            var msgs = await _db.ChatMessages
+            var msgs = await db.ChatMessages
                 .Where(m => m.ThreadId == threadId)
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip((page - 1) * pageSize)
@@ -53,7 +44,7 @@ namespace AppConsorciosMvp.Controllers
         }
 
         public record PostMessageBody(Guid threadId, string type, string text, Attachment[]? attachments);
-        public record Attachment(string url, string name);
+        public abstract record Attachment(string url, string name);
 
         [HttpPost("messages")]
         public async Task<IActionResult> PostMessage([FromBody] PostMessageBody body)
@@ -65,13 +56,13 @@ namespace AppConsorciosMvp.Controllers
                 AuthorRole = "agent",
                 Type = body.type,
                 Text = body.text,
-                AttachmentsJson = System.Text.Json.JsonSerializer.Serialize(body.attachments ?? Array.Empty<Attachment>()),
+                AttachmentsJson = System.Text.Json.JsonSerializer.Serialize(body.attachments ?? []),
                 CreatedAt = DateTimeOffset.UtcNow
             };
-            _db.ChatMessages.Add(message);
-            await _db.SaveChangesAsync();
+            db.ChatMessages.Add(message);
+            await db.SaveChangesAsync();
 
-            await _chatHub.Clients.Group($"thread:{body.threadId}")
+            await chatHub.Clients.Group($"thread:{body.threadId}")
                 .SendAsync("message", new
                 {
                     message.Id,

@@ -13,12 +13,12 @@ namespace AppConsorciosMvp.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Requer autenticação para todos os endpoints
-    public class DocumentosController : ControllerBase
+    public class DocumentosController(
+        AppDbContext context,
+        AzureBlobService blobService,
+        ILogger<DocumentosController> logger)
+        : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly AzureBlobService _blobService;
-        private readonly ILogger<DocumentosController> _logger;
-
         // Tipos de arquivo permitidos
         private readonly string[] _tiposPermitidos = { ".pdf", ".jpg", ".jpeg", ".png" };
         private readonly string[] _contentTypesPermitidos = 
@@ -28,14 +28,7 @@ namespace AppConsorciosMvp.Controllers
             "image/jpg", 
             "image/png" 
         };
-        private const long _tamanhoMaximo = 10 * 1024 * 1024; // 10MB
-
-        public DocumentosController(AppDbContext context, AzureBlobService blobService, ILogger<DocumentosController> logger)
-        {
-            _context = context;
-            _blobService = blobService;
-            _logger = logger;
-        }
+        private const long TamanhoMaximo = 10 * 1024 * 1024; // 10MB
 
         /// <summary>
         /// Upload de documento do usuário
@@ -46,7 +39,7 @@ namespace AppConsorciosMvp.Controllers
             try
             {
                 var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                var usuario = await _context.Usuarios.FindAsync(usuarioId);
+                var usuario = await context.Usuarios.FindAsync(usuarioId);
 
                 if (usuario == null)
                 {
@@ -64,19 +57,19 @@ namespace AppConsorciosMvp.Controllers
                 var tipo = ParseDocumentoTipo(dto.TipoDocumento);
 
                 // Verificar se já existe documento do mesmo tipo para este usuário
-                var documentoExistente = await _context.DocumentosUsuario
+                var documentoExistente = await context.DocumentosUsuario
                     .FirstOrDefaultAsync(d => d.UsuarioId == usuarioId && d.TipoDocumento == tipo);
 
                 if (documentoExistente != null)
                 {
                     // Excluir o blob antigo
-                    await _blobService.DeleteAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documentoExistente.BlobName);
-                    _context.DocumentosUsuario.Remove(documentoExistente);
+                    await blobService.DeleteAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documentoExistente.BlobName);
+                    context.DocumentosUsuario.Remove(documentoExistente);
                 }
 
                 // Fazer upload para Azure Blob Storage
                 using var stream = dto.Arquivo.OpenReadStream();
-                var (blobName, blobUrl) = await _blobService.UploadAsync(
+                var (blobName, blobUrl) = await blobService.UploadAsync(
                     stream, 
                     dto.Arquivo.FileName, 
                     dto.Arquivo.ContentType, 
@@ -98,17 +91,17 @@ namespace AppConsorciosMvp.Controllers
                     AtualizadoEm = DateTime.UtcNow
                 };
 
-                _context.DocumentosUsuario.Add(documento);
-                await _context.SaveChangesAsync();
+                context.DocumentosUsuario.Add(documento);
+                await context.SaveChangesAsync();
 
-                _logger.LogInformation($"Documento {dto.TipoDocumento} enviado pelo usuário {usuarioId}");
+                logger.LogInformation($"Documento {dto.TipoDocumento} enviado pelo usuário {usuarioId}");
 
                 return CreatedAtAction(nameof(ObterDocumento), new { id = documento.Id }, 
                     MapearParaDto(documento, usuario.Nome));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erro ao fazer upload de documento");
+                logger.LogError(ex, "Erro ao fazer upload de documento");
                 return StatusCode(500, "Erro interno do servidor");
             }
         }
@@ -121,7 +114,7 @@ namespace AppConsorciosMvp.Controllers
         {
             var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-            var documentos = await _context.DocumentosUsuario
+            var documentos = await context.DocumentosUsuario
                 .Where(d => d.UsuarioId == usuarioId)
                 .Include(d => d.Usuario)
                 .Include(d => d.ValidadoPor)
@@ -141,7 +134,7 @@ namespace AppConsorciosMvp.Controllers
             var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             var papel = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            var documento = await _context.DocumentosUsuario
+            var documento = await context.DocumentosUsuario
                 .Include(d => d.Usuario)
                 .Include(d => d.ValidadoPor)
                 .FirstOrDefaultAsync(d => d.Id == id);
@@ -171,7 +164,7 @@ namespace AppConsorciosMvp.Controllers
                 var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var papel = User.FindFirst(ClaimTypes.Role)?.Value;
 
-                var documento = await _context.DocumentosUsuario.FindAsync(id);
+                var documento = await context.DocumentosUsuario.FindAsync(id);
 
                 if (documento == null)
                 {
@@ -184,7 +177,7 @@ namespace AppConsorciosMvp.Controllers
                     return Forbid("Acesso negado");
                 }
 
-                var (stream, contentType) = await _blobService.DownloadAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documento.BlobName);
+                var (stream, contentType) = await blobService.DownloadAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documento.BlobName);
 
                 return File(stream, contentType, documento.NomeArquivo);
             }
@@ -194,7 +187,7 @@ namespace AppConsorciosMvp.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Erro ao fazer download do documento {id}");
+                logger.LogError(ex, $"Erro ao fazer download do documento {id}");
                 return StatusCode(500, "Erro interno do servidor");
             }
         }
@@ -208,7 +201,7 @@ namespace AppConsorciosMvp.Controllers
             [FromQuery] string? status = null,
             [FromQuery] string? tipoDocumento = null)
         {
-            IQueryable<DocumentoUsuario> query = _context.DocumentosUsuario
+            IQueryable<DocumentoUsuario> query = context.DocumentosUsuario
                 .Include(d => d.Usuario)
                 .Include(d => d.ValidadoPor);
 
@@ -241,7 +234,7 @@ namespace AppConsorciosMvp.Controllers
         {
             var validadorId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-            var documento = await _context.DocumentosUsuario
+            var documento = await context.DocumentosUsuario
                 .Include(d => d.Usuario)
                 .FirstOrDefaultAsync(d => d.Id == id);
 
@@ -256,11 +249,11 @@ namespace AppConsorciosMvp.Controllers
             documento.ValidadoEm = DateTime.UtcNow;
             documento.AtualizadoEm = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
 
-            _logger.LogInformation($"Documento {id} validado como {dto.Status} por admin {validadorId}");
+            logger.LogInformation($"Documento {id} validado como {dto.Status} por admin {validadorId}");
 
-            var validador = await _context.Usuarios.FindAsync(validadorId);
+            var validador = await context.Usuarios.FindAsync(validadorId);
             return Ok(MapearParaDto(documento, documento.Usuario?.Nome ?? "", validador?.Nome));
         }
 
@@ -275,7 +268,7 @@ namespace AppConsorciosMvp.Controllers
                 var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 var papel = User.FindFirst(ClaimTypes.Role)?.Value;
 
-                var documento = await _context.DocumentosUsuario.FindAsync(id);
+                var documento = await context.DocumentosUsuario.FindAsync(id);
 
                 if (documento == null)
                 {
@@ -289,19 +282,19 @@ namespace AppConsorciosMvp.Controllers
                 }
 
                 // Excluir do Azure Blob Storage
-                await _blobService.DeleteAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documento.BlobName);
+                await blobService.DeleteAsync(AzureBlobService.ParamContainerDocumentosUsuarios, documento.BlobName);
 
                 // Excluir do banco
-                _context.DocumentosUsuario.Remove(documento);
-                await _context.SaveChangesAsync();
+                context.DocumentosUsuario.Remove(documento);
+                await context.SaveChangesAsync();
 
-                _logger.LogInformation($"Documento {id} excluído");
+                logger.LogInformation($"Documento {id} excluído");
 
                 return NoContent();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Erro ao excluir documento {id}");
+                logger.LogError(ex, $"Erro ao excluir documento {id}");
                 return StatusCode(500, "Erro interno do servidor");
             }
         }
@@ -313,9 +306,9 @@ namespace AppConsorciosMvp.Controllers
                 return "Arquivo é obrigatório";
             }
 
-            if (arquivo.Length > _tamanhoMaximo)
+            if (arquivo.Length > TamanhoMaximo)
             {
-                return $"Arquivo muito grande. Máximo permitido: {_tamanhoMaximo / 1024 / 1024}MB";
+                return $"Arquivo muito grande. Máximo permitido: {TamanhoMaximo / 1024 / 1024}MB";
             }
 
             var extension = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
