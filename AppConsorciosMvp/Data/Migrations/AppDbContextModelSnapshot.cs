@@ -47,11 +47,10 @@ namespace AppConsorciosMvp.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
+                    b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("varchar(10)")
-                        .HasDefaultValue("Ativa");
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Telefone")
                         .HasMaxLength(20)

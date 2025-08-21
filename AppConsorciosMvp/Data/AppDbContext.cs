@@ -8,12 +8,8 @@ namespace AppConsorciosMvp.Data
     /// <summary>
     /// Contexto do banco de dados para a aplicação
     /// </summary>
-    public class AppDbContext : DbContext
+    public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-        {
-        }
-
         // DbSets principais
         public DbSet<Usuario> Usuarios { get; set; } = null!;
         public DbSet<CartaConsorcio> CartasConsorcio { get; set; } = null!;
@@ -85,8 +81,8 @@ namespace AppConsorciosMvp.Data
                 entity.Property(e => e.Email).HasColumnType("varchar(200)");
                 entity.Property(e => e.Status)
                       .IsRequired()
-                      .HasConversion<string>()
-                      .HasColumnType("varchar(10)")
+                      .HasColumnType("integer")
+                      .HasConversion<int>()
                       .HasDefaultValue(AdministradoraStatus.Ativa);
             });
 
@@ -163,7 +159,8 @@ namespace AppConsorciosMvp.Data
                       .IsRequired()
                       .HasConversion<string>()
                       .HasColumnType("varchar(20)")
-                      .HasDefaultValue(DocumentoStatus.Pendente);
+                      .HasDefaultValue(DocumentoStatus.Pendente)
+                      .HasSentinel((DocumentoStatus)0);
                 entity.Property(e => e.ObservacoesValidacao).HasColumnType("text");
 
                 entity.HasOne(d => d.Usuario)

@@ -17,7 +17,7 @@ namespace AppConsorciosMvp.Controllers
         /// <summary>
         /// Lista todas as administradoras (acessível a qualquer usuário autenticado)
         /// </summary>
-        [HttpGet]
+        [HttpGet("/all")]
         [Authorize] // Acesso liberado para qualquer usuário autenticado (não exige papel de administrador)
         public async Task<ActionResult<IEnumerable<AdministradoraRespostaDTO>>> ListarAdministradoras()
         {
@@ -38,6 +38,27 @@ namespace AppConsorciosMvp.Controllers
                 Status = a.Status.ToString().ToLower(),
                 CreatedAt = a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
                 UpdatedAt = a.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss")
+            });
+
+            return Ok(result);
+        }
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<AdministradoraSmallRespostaDto
+        >>> ListarAdministradorasWizard()
+        {
+            // a consulta de administradoras deve ser liberada para usuários logados
+            // pois temos a tela de venda de cotas que deve permitir a seleção das cadastradas
+
+            var administradoras = await context.Administradoras
+                .Select(a => new { a.Id, a.Nome })
+                .OrderBy(a => a.Nome)
+                .ToListAsync();
+
+            var result = administradoras.Select(a => new AdministradoraSmallRespostaDto()
+            {
+                Id = a.Id.ToString(),
+                Nome = a.Nome
             });
 
             return Ok(result);

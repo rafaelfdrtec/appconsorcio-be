@@ -70,4 +70,10 @@ namespace AppConsorciosMvp.DTOs
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
     }
+    
+    public class AdministradoraSmallRespostaDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Nome { get; set; } = string.Empty;
+    }
 }

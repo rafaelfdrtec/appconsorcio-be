@@ -11,15 +11,9 @@ namespace AppConsorciosMvp.Services
     /// - Google:ClientId (string única) ou
     /// - Google:ClientIds (array)
     /// </summary>
-    public class GoogleTokenValidationService
+    public class GoogleTokenValidationService(IConfiguration config)
     {
-        private readonly IConfiguration _config;
         private readonly HttpClient _httpClient = new HttpClient();
-
-        public GoogleTokenValidationService(IConfiguration config)
-        {
-            _config = config;
-        }
 
         public class GoogleTokenInfo
         {
@@ -89,11 +83,11 @@ namespace AppConsorciosMvp.Services
 
         private string[] GetAllowedAudiences()
         {
-            var list = _config.GetSection("Google:ClientIds").Get<string[]>();
+            var list = config.GetSection("Google:ClientIds").Get<string[]>();
             if (list is { Length: > 0 })
                 return list;
 
-            var single = _config["Google:ClientId"];
+            var single = config["Google:ClientId"];
             if (!string.IsNullOrWhiteSpace(single))
                 return new[] { single };
 

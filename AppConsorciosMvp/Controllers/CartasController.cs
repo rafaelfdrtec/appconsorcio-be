@@ -6,12 +6,14 @@ using AppConsorciosMvp.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace AppConsorciosMvp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class CartasController(AppDbContext context) : ControllerBase
+    public class CartasController(AppDbContext context, ILogger<CartasController> logger) : ControllerBase
     {
         /// <summary>
         /// Cria uma carta de consórcio
@@ -19,7 +21,7 @@ namespace AppConsorciosMvp.Controllers
         /// <param name="cartaDto">Dados da carta</param>
         /// <returns>Carta criada</returns>
         [HttpPost]
-        [Authorize(Roles = "vendedor,admin")] // Apenas vendedores ou admins podem criar cartas
+        [Authorize(Roles = "comprador,vendedor,admin")] // Apenas vendedores ou admins podem criar cartas
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -294,6 +296,7 @@ namespace AppConsorciosMvp.Controllers
             // Apenas o vendedor da carta ou um administrador pode fazer isso
             if (carta.VendedorId != usuarioId && papelUsuario != "admin")
             {
+                logger.LogWarning("Forbid em AtualizarStatusCarta: usuário {UserId} com papel {Role} tentou atualizar carta {CartaId} pertencente a {OwnerId}", usuarioId, papelUsuario ?? "(sem papel)", carta.Id, carta.VendedorId);
                 return Forbid();
             }
 
@@ -405,6 +408,87 @@ namespace AppConsorciosMvp.Controllers
 
                 default:
                     return false;
+            }
+        }
+
+        [HttpGet("auth-debug")]
+        [AllowAnonymous]
+        public ActionResult<object> DebugAuth()
+        {
+            var authHeader = Request.Headers.Authorization.ToString();
+            var bearer = !string.IsNullOrWhiteSpace(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? authHeader["Bearer ".Length..].Trim()
+                : null;
+
+            logger.LogInformation(
+                "Auth-Debug: IsAuthenticated={IsAuth}, AuthType={AuthType}, NameIdentifier={NameId}, Roles=[{Roles}]",
+                User?.Identity?.IsAuthenticated ?? false,
+                User?.Identity?.AuthenticationType ?? "(null)",
+                User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "(sem)",
+                string.Join(",", User?.FindAll(ClaimTypes.Role)?.Select(r => r.Value) ?? Array.Empty<string>())
+            );
+
+            if (!string.IsNullOrEmpty(bearer))
+            {
+                if (TryDecodeJwtPayload(bearer, out var payloadJson))
+                {
+                    logger.LogInformation("Auth-Debug: JWT payload recebido: {Payload}", payloadJson);
+                }
+                else
+                {
+                    logger.LogInformation("Auth-Debug: JWT fornecido, tamanho {Len}. Não foi possível decodificar o payload.", bearer.Length);
+                }
+            }
+            else
+            {
+                logger.LogInformation("Auth-Debug: sem Authorization Bearer");
+            }
+
+            return Ok(new
+            {
+                IsAuthenticated = User?.Identity?.IsAuthenticated ?? false,
+                AuthenticationType = User?.Identity?.AuthenticationType,
+                NameIdentifier = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value,
+                Roles = User?.FindAll(ClaimTypes.Role)?.Select(r => r.Value).ToArray() ?? Array.Empty<string>(),
+                AuthorizationHeaderPresent = !string.IsNullOrEmpty(authHeader),
+                TokenPreview = string.IsNullOrEmpty(bearer) ? null : MaskToken(bearer),
+                JwtPayloadJson = TryDecodeJwtPayload(bearer, out var pj) ? pj : null
+            });
+        }
+
+        private static string MaskToken(string token)
+        {
+            if (string.IsNullOrEmpty(token) || token.Length < 12) return "***";
+            return $"{token.Substring(0, 6)}...{token.Substring(token.Length - 6)} (len={token.Length})";
+        }
+
+        private static bool TryDecodeJwtPayload(string? token, out string? payloadJson)
+        {
+            payloadJson = null;
+            if (string.IsNullOrWhiteSpace(token)) return false;
+
+            var parts = token.Split('.');
+            if (parts.Length < 2) return false;
+
+            try
+            {
+                var payload = parts[1]
+                    .Replace('-', '+')
+                    .Replace('_', '/');
+
+                switch (payload.Length % 4)
+                {
+                    case 2: payload += "=="; break;
+                    case 3: payload += "="; break;
+                }
+
+                var bytes = Convert.FromBase64String(payload);
+                payloadJson = Encoding.UTF8.GetString(bytes);
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 

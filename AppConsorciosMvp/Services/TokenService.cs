@@ -10,15 +10,8 @@ namespace AppConsorciosMvp.Services
     /// <summary>
     /// Serviço para geração de tokens JWT
     /// </summary>
-    public class TokenService
+    public class TokenService(IConfiguration configuration)
     {
-        private readonly IConfiguration _configuration;
-
-        public TokenService(IConfiguration configuration)
-        {
-            _configuration = configuration;
-        }
-
         /// <summary>
         /// Gera um token JWT para o usuário
         /// </summary>
@@ -27,7 +20,7 @@ namespace AppConsorciosMvp.Services
         public string GerarToken(Usuario usuario)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret não configurado"));
+            var key = Encoding.ASCII.GetBytes(configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret não configurado"));
 
             // Normaliza o papel para minúsculas nos claims (compatível com [Authorize(Roles = "...")])
             var role = usuario.Papel switch
@@ -49,8 +42,8 @@ namespace AppConsorciosMvp.Services
                 new Claim("MfaEnabled", usuario.MfaEnabled.ToString())
             };
 
-            var issuer = _configuration["JWT:Issuer"] ?? "webapp";
-            var audience = _configuration["JWT:Audience"] ?? "consortium-api";
+            var issuer = configuration["JWT:Issuer"] ?? "webapp";
+            var audience = configuration["JWT:Audience"] ?? "consortium-api";
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {

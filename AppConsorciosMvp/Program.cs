@@ -48,14 +48,12 @@ builder.Services.AddScoped<IEscrowProvider, MockEscrowProvider>();
 
 // Políticas de autorização: KYC e MFA
 builder.Services.AddSingleton<IAuthorizationHandler, RequireKycHandler>();
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("RequireKyc2", policy =>
-        policy.Requirements.Add(new RequireKycRequirement(2)));
-    options.AddPolicy("RequireMfa", policy =>
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("RequireKyc2", policy =>
+        policy.Requirements.Add(new RequireKycRequirement(2)))
+    .AddPolicy("RequireMfa", policy =>
         policy.RequireAssertion(ctx =>
             ctx.User.HasClaim(c => c.Type == "MfaEnabled" && bool.TryParse(c.Value, out var b) && b)));
-});
 
 // Configurar autenticação JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
