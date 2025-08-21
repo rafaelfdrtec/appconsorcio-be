@@ -44,7 +44,7 @@ builder.Services.AddScoped<TokenService>();
 // Adapters/Interfaces MVP
 builder.Services.AddSingleton<IFileStorage, AzureSasFileStorage>();
 builder.Services.AddSingleton<INotificationQueue, AzureStorageNotificationQueue>();
-builder.Services.AddSingleton<IEscrowProvider, MockEscrowProvider>();
+builder.Services.AddScoped<IEscrowProvider, MockEscrowProvider>();
 
 // Políticas de autorização: KYC e MFA
 builder.Services.AddSingleton<IAuthorizationHandler, RequireKycHandler>();
