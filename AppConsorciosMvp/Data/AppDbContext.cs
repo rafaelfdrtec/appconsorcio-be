@@ -1,5 +1,6 @@
 using AppConsorciosMvp.Models;
 using AppConsorciosMvp.Models.Enums;
+using AppConsorciosMvp.Models.Mvp;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppConsorciosMvp.Data
@@ -29,6 +30,16 @@ namespace AppConsorciosMvp.Data
         // Alias para compatibilidade com serviços existentes
         public DbSet<ParametroSistema> Parametros { get; set; } = null!;
 
+        // DbSets MVP
+        public DbSet<KycCase> KycCases { get; set; } = null!;
+        public DbSet<Transacao> Transacoes { get; set; } = null!;
+        public DbSet<Contrato> Contratos { get; set; } = null!;
+        public DbSet<Escrow> Escrows { get; set; } = null!;
+        public DbSet<ChatThread> ChatThreads { get; set; } = null!;
+        public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+
         /// <summary>
         /// Configura o modelo ao criar o banco de dados
         /// </summary>
@@ -54,6 +65,13 @@ namespace AppConsorciosMvp.Data
                 entity.Property(e => e.Papel)
                       .HasConversion<string>()
                       .HasColumnType("varchar(20)");
+                entity.Property(e => e.Status)
+                      .HasColumnType("varchar(30)")
+                      .HasDefaultValue("active");
+                entity.Property(e => e.KycLevel)
+                      .HasDefaultValue(0);
+                entity.Property(e => e.MfaEnabled)
+                      .HasDefaultValue(false);
             });
 
             // Configuração da entidade Administradora
@@ -191,6 +209,93 @@ namespace AppConsorciosMvp.Data
                       .WithMany(u => u.PropostasComoComprador!)
                       .HasForeignKey(p => p.CompradorId)
                       .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // MVP: KYC
+            modelBuilder.Entity<KycCase>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.UserId);
+                entity.Property(e => e.Status).HasColumnType("varchar(20)");
+                entity.Property(e => e.EvidenceRefs).HasColumnType("jsonb");
+                entity.Property(e => e.ReasonCode).HasColumnType("varchar(50)");
+                entity.Property(e => e.ReasonMessage).HasColumnType("text");
+                entity.Property(e => e.Severity).HasColumnType("varchar(20)");
+                entity.Property(e => e.BlocksJson).HasColumnType("jsonb");
+            });
+
+            // MVP: Transacao
+            modelBuilder.Entity<Transacao>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.CartaId);
+                entity.HasIndex(e => e.BuyerId);
+                entity.HasIndex(e => e.SellerId);
+                entity.Property(e => e.Status).HasColumnType("varchar(30)");
+                entity.Property(e => e.CurrentStep).HasColumnType("varchar(50)");
+            });
+
+            // MVP: Contrato
+            modelBuilder.Entity<Contrato>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TransacaoId);
+                entity.Property(e => e.Status).HasColumnType("varchar(20)");
+                entity.Property(e => e.Url).HasColumnType("text");
+                entity.Property(e => e.EvidenceHash).HasColumnType("varchar(200)");
+            });
+
+            // MVP: Escrow
+            modelBuilder.Entity<Escrow>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TransacaoId);
+                entity.Property(e => e.Provider).HasColumnType("varchar(50)");
+                entity.Property(e => e.IntentId).HasColumnType("varchar(100)");
+                entity.Property(e => e.SplitJson).HasColumnType("jsonb");
+                entity.Property(e => e.Status).HasColumnType("varchar(30)");
+            });
+
+            // MVP: Chat
+            modelBuilder.Entity<ChatThread>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.TransacaoId);
+                entity.Property(e => e.Kind).HasColumnType("varchar(30)");
+            });
+
+            modelBuilder.Entity<ChatMessage>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.ThreadId);
+                entity.Property(e => e.AuthorRole).HasColumnType("varchar(30)");
+                entity.Property(e => e.Type).HasColumnType("varchar(20)");
+                entity.Property(e => e.Text).HasColumnType("text");
+                entity.Property(e => e.AttachmentsJson).HasColumnType("jsonb");
+            });
+
+            // MVP: Notification
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.UserId);
+                entity.Property(e => e.Channel).HasColumnType("varchar(30)");
+                entity.Property(e => e.Template).HasColumnType("varchar(50)");
+                entity.Property(e => e.PayloadJson).HasColumnType("jsonb");
+                entity.Property(e => e.Status).HasColumnType("varchar(20)");
+            });
+
+            // MVP: AuditLog
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
+                entity.Property(e => e.EntityType).HasColumnType("varchar(50)");
+                entity.Property(e => e.Event).HasColumnType("varchar(50)");
+                entity.Property(e => e.PayloadHash).HasColumnType("varchar(200)");
+                entity.Property(e => e.PrevHash).HasColumnType("varchar(200)");
+                entity.Property(e => e.Ip).HasColumnType("varchar(60)");
+                entity.Property(e => e.Device).HasColumnType("varchar(120)");
             });
 
             // Parametros do sistema

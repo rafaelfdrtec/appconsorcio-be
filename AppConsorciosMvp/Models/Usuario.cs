@@ -46,6 +46,22 @@ namespace AppConsorciosMvp.Models
         public bool EhVerificado { get; set; } = false;  // Valor padrão
 
         /// <summary>
+        /// Nível de KYC do usuário (0=sem KYC)
+        /// </summary>
+        public int KycLevel { get; set; } = 0;
+
+        /// <summary>
+        /// Indica se o usuário possui MFA habilitado
+        /// </summary>
+        public bool MfaEnabled { get; set; } = false;
+
+        /// <summary>
+        /// Status do usuário (ex: active/suspended)
+        /// </summary>
+        [StringLength(30)]
+        public string Status { get; set; } = "active";
+
+        /// <summary>
         /// Lista de cartas de consórcio associadas a este usuário (como vendedor)
         /// </summary>
         public ICollection<CartaConsorcio>? CartasConsorcio { get; set; }

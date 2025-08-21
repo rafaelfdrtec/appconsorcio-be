@@ -44,15 +44,22 @@ namespace AppConsorciosMvp.Services
                 new Claim(ClaimTypes.Name, usuario.Nome),
                 new Claim(ClaimTypes.Email, usuario.Email),
                 new Claim(ClaimTypes.Role, role),
-                new Claim("EhVerificado", usuario.EhVerificado.ToString())
+                new Claim("EhVerificado", usuario.EhVerificado.ToString()),
+                new Claim("KycLevel", usuario.KycLevel.ToString()),
+                new Claim("MfaEnabled", usuario.MfaEnabled.ToString())
             };
+
+            var issuer = _configuration["JWT:Issuer"] ?? "webapp";
+            var audience = _configuration["JWT:Audience"] ?? "consortium-api";
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(24),
+                Issuer = issuer,
+                Audience = audience,
+                Expires = DateTime.UtcNow.AddMinutes(15),
                 SigningCredentials = new SigningCredentials(
-                    new SymmetricSecurityKey(key), 
+                    new SymmetricSecurityKey(key),
                     SecurityAlgorithms.HmacSha256Signature)
             };
 

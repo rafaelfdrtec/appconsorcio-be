@@ -2,7 +2,13 @@ using System.Text;
 using AppConsorciosMvp.Data;
 using AppConsorciosMvp.Extensions;
 using AppConsorciosMvp.Services;
+using AppConsorciosMvp.SignalR;
+using AppConsorciosMvp.Authorization;
+using AppConsorciosMvp.Storage;
+using AppConsorciosMvp.Notifications;
+using AppConsorciosMvp.Payments;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,13 +18,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Obter configurações
 var configuration = builder.Configuration;
-var connectionString = configuration.GetConnectionString("DefaultConnection") ?? 
+var connectionString = configuration.GetConnectionString("DefaultConnection") ??
                       throw new InvalidOperationException("String de conexão 'DefaultConnection' não encontrada.");
-var jwtSecret = configuration["JWT:Secret"] ?? 
+var jwtSecret = configuration["JWT:Secret"] ??
                throw new InvalidOperationException("JWT Secret não configurado");
+var jwtIssuer = configuration["JWT:Issuer"] ?? "webapp";
+var jwtAudience = configuration["JWT:Audience"] ?? "consortium-api";
 
 // Adicionar serviços ao container
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 
 // Registrar serviços customizados
 builder.Services.AddScoped<ParametrosService>();
@@ -32,6 +41,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<PasswordHashService>();
 builder.Services.AddScoped<TokenService>();
 
+// Adapters/Interfaces MVP
+builder.Services.AddSingleton<IFileStorage, AzureSasFileStorage>();
+builder.Services.AddSingleton<INotificationQueue, AzureStorageNotificationQueue>();
+builder.Services.AddSingleton<IEscrowProvider, MockEscrowProvider>();
+
+// Políticas de autorização: KYC e MFA
+builder.Services.AddSingleton<IAuthorizationHandler, RequireKycHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireKyc2", policy =>
+        policy.Requirements.Add(new RequireKycRequirement(2)));
+    options.AddPolicy("RequireMfa", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.HasClaim(c => c.Type == "MfaEnabled" && bool.TryParse(c.Value, out var b) && b)));
+});
+
 // Configurar autenticação JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -40,8 +65,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = true,
+            ValidIssuer = jwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = jwtAudience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
@@ -132,5 +159,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// SignalR Hubs
+app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();
